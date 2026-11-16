@@ -1,7 +1,9 @@
 import csv
+import importlib.util
+import math
 import os
 import json
-import joblib
+import sys
 import numpy as np
 from pathlib import Path
 from threading import Lock
@@ -13,8 +15,8 @@ from app.services.feature_builder import NUMERIC_COLUMNS_25, FEATURE_COLUMNS_27
 
 class ModelService:
     def __init__(self):
-        self.cat_model = None
-        self.hgb_model = None
+        self.cat_model = None   # pure-Python catboost inference module
+        self.hgb_model = None   # JSON-based HGB inference artifact
         self.ensemble_weights = [0.5, 0.0, 0.0, 0.5]
         self.ensemble_threshold = 0.155
         self.is_loaded = False
@@ -34,12 +36,22 @@ class ModelService:
 
     def load_models(self):
         try:
-            cat_path = MODELS_DIR / "cat_model.joblib"
-            if cat_path.exists():
-                self.cat_model = joblib.load(cat_path)
-            else:
-                raise FileNotFoundError(f"CatBoost model artifact not found at {cat_path}")
+            # --- Load pure-Python CatBoost model ---
+            cat_py_path = MODELS_DIR / "cat_model_python.py"
+            if not cat_py_path.exists():
+                raise FileNotFoundError(
+                    f"CatBoost Python inference artifact not found at {cat_py_path}"
+                )
+            spec = importlib.util.spec_from_file_location("cat_model_python", cat_py_path)
+            cat_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(cat_module)
+            if not hasattr(cat_module, "apply_catboost_model"):
+                raise ValueError(
+                    "cat_model_python.py does not expose apply_catboost_model()"
+                )
+            self.cat_model = cat_module
 
+            # --- Load HistGradientBoosting JSON inference artifact ---
             hgb_path = MODELS_DIR / "hist_gradient_boosting.json"
             if not hgb_path.exists():
                 raise FileNotFoundError(
@@ -49,6 +61,7 @@ class ModelService:
                 self.hgb_model = json.load(model_file)
             self._validate_hgb_artifact(self.hgb_model)
 
+            # --- Load ensemble configuration ---
             ensemble_config_path = MODELS_DIR / "ensemble_configuration.json"
             if ensemble_config_path.exists():
                 try:
@@ -56,35 +69,51 @@ class ModelService:
                         cfg = json.load(f)
                         if "best_weights" in cfg and isinstance(cfg["best_weights"], list):
                             self.ensemble_weights = cfg["best_weights"]
-                        if "ensemble_threshold" in cfg and isinstance(cfg["ensemble_threshold"], (int, float)):
+                        if "ensemble_threshold" in cfg and isinstance(
+                            cfg["ensemble_threshold"], (int, float)
+                        ):
                             self.ensemble_threshold = float(cfg["ensemble_threshold"])
                 except Exception as e:
                     print(f"Warning reading ensemble_configuration.json: {e}")
 
             self.is_loaded = True
-            print("FairGig AI ML Service: HistGradientBoosting and CatBoost loaded successfully.")
+            print(
+                "FairGig AI ML Service: HistGradientBoosting and CatBoost loaded successfully."
+            )
 
         except Exception as e:
             self.is_loaded = False
             self.load_error = str(e)
             print(f"FairGig AI ML Service Load Error: {e}")
 
+    # ------------------------------------------------------------------
+    # HGB inference (pure NumPy — unchanged)
+    # ------------------------------------------------------------------
+
     @staticmethod
     def _validate_hgb_artifact(model: Dict[str, Any]) -> None:
         if model.get("format_version") != 1:
             raise ValueError("Unsupported HistGradientBoosting inference artifact version")
         if model.get("feature_columns") != NUMERIC_COLUMNS_25:
-            raise ValueError("HistGradientBoosting feature ordering does not match the application")
+            raise ValueError(
+                "HistGradientBoosting feature ordering does not match the application"
+            )
         if model.get("classes") != [0, 1]:
-            raise ValueError("HistGradientBoosting artifact must contain binary classes [0, 1]")
+            raise ValueError(
+                "HistGradientBoosting artifact must contain binary classes [0, 1]"
+            )
         if not model.get("trees") or not isinstance(model.get("trees"), list):
             raise ValueError("HistGradientBoosting inference artifact contains no trees")
         for tree in model["trees"]:
             if not tree or any(len(node) != 7 for node in tree):
-                raise ValueError("HistGradientBoosting inference artifact contains an invalid tree")
+                raise ValueError(
+                    "HistGradientBoosting inference artifact contains an invalid tree"
+                )
             for node in tree:
                 if not node[6] and not 0 <= node[1] < len(NUMERIC_COLUMNS_25):
-                    raise ValueError("HistGradientBoosting tree references an invalid feature")
+                    raise ValueError(
+                        "HistGradientBoosting tree references an invalid feature"
+                    )
 
     def _predict_hgb_probabilities(self, numeric_features: np.ndarray) -> np.ndarray:
         model = self.hgb_model
@@ -101,7 +130,6 @@ class ModelService:
                     if node[6]:
                         raw_predictions[row_index] += float(node[0])
                         break
-
                     value = row[int(node[1])]
                     if np.isnan(value):
                         node_index = int(node[4] if node[3] else node[5])
@@ -117,7 +145,43 @@ class ModelService:
         probabilities[~positive] = exp_values / (1.0 + exp_values)
         return probabilities
 
-    def predict_probabilities(self, feature_rows: List[Dict[str, Any]]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    # ------------------------------------------------------------------
+    # CatBoost inference (pure Python — no catboost package at runtime)
+    # ------------------------------------------------------------------
+
+    def _predict_cat_probabilities(
+        self, feature_rows: List[Dict[str, Any]]
+    ) -> np.ndarray:
+        """
+        Run CatBoost inference using the exported pure-Python module.
+
+        The module's apply_catboost_model(float_features, cat_features) function
+        expects:
+          float_features: list of 25 numeric feature values in NUMERIC_COLUMNS_25 order
+          cat_features:   list of 2 categorical strings [task_type, required_skill]
+        and returns the raw log-odds score. We apply the sigmoid to get a probability.
+        """
+        cat_py = self.cat_model
+        probs = np.empty(len(feature_rows), dtype=np.float64)
+        for i, row in enumerate(feature_rows):
+            float_vals = [float(row[col]) for col in NUMERIC_COLUMNS_25]
+            cat_vals = [str(row["task_type"]), str(row["required_skill"])]
+            raw_score = cat_py.apply_catboost_model(float_vals, cat_vals)
+            # Numerically-stable sigmoid
+            if raw_score >= 0:
+                probs[i] = 1.0 / (1.0 + math.exp(-raw_score))
+            else:
+                exp_val = math.exp(raw_score)
+                probs[i] = exp_val / (1.0 + exp_val)
+        return probs
+
+    # ------------------------------------------------------------------
+    # Public ensemble predict
+    # ------------------------------------------------------------------
+
+    def predict_probabilities(
+        self, feature_rows: List[Dict[str, Any]]
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Calculates predicted success probabilities for candidate feature rows.
         Returns:
@@ -136,18 +200,7 @@ class ModelService:
             empty = np.array([], dtype=float)
             return empty, empty, empty
 
-        from catboost import Pool
-
-        cat_rows = [
-            [row[column] for column in FEATURE_COLUMNS_27]
-            for row in feature_rows
-        ]
-        cat_pool = Pool(
-            cat_rows,
-            cat_features=[0, 1],
-            feature_names=FEATURE_COLUMNS_27,
-        )
-        cat_probs = self.cat_model.predict_proba(cat_pool)[:, 1]
+        cat_probs = self._predict_cat_probabilities(feature_rows)
 
         numeric_features = np.asarray(
             [
@@ -176,6 +229,10 @@ class ModelService:
 
         return ensemble_probs, hgb_probs, cat_probs
 
+    # ------------------------------------------------------------------
+    # Status / metadata
+    # ------------------------------------------------------------------
+
     def get_status(self) -> Dict[str, Any]:
         try:
             self.ensure_loaded()
@@ -190,25 +247,39 @@ class ModelService:
             "total_features_expected": len(FEATURE_COLUMNS_27),
             "features_list": FEATURE_COLUMNS_27,
             "artifact_paths": {
-                "cat_model": str(MODELS_DIR / "cat_model.joblib"),
-                "all_models": str(MODELS_DIR / "all_trained_models.joblib"),
+                "cat_model_python": str(MODELS_DIR / "cat_model_python.py"),
                 "hgb_inference": str(MODELS_DIR / "hist_gradient_boosting.json"),
-                "ensemble_config": str(MODELS_DIR / "ensemble_configuration.json")
+                "ensemble_config": str(MODELS_DIR / "ensemble_configuration.json"),
             },
-            "environment_status": "Operational" if self.is_loaded else f"Degraded: {self.load_error}"
+            "environment_status": "Operational"
+            if self.is_loaded
+            else f"Degraded: {self.load_error}",
         }
 
     def get_feature_importances(self) -> List[Dict[str, Any]]:
-        """Returns feature importances from the CatBoost model."""
+        """
+        Returns approximate feature importances from the HGB model.
+        Since we no longer load the catboost package at runtime, we derive
+        importances from the HGB JSON artifact's feature usage frequency.
+        """
         self.ensure_loaded()
+        # Count how many times each feature is used as a split in the HGB trees
+        usage = {col: 0 for col in NUMERIC_COLUMNS_25}
+        for tree in self.hgb_model.get("trees", []):
+            for node in tree:
+                if not node[6]:  # not a leaf
+                    feat_idx = int(node[1])
+                    if 0 <= feat_idx < len(NUMERIC_COLUMNS_25):
+                        usage[NUMERIC_COLUMNS_25[feat_idx]] += 1
 
-        importances = self.cat_model.get_feature_importance()
-        result = []
-        for name, val in zip(FEATURE_COLUMNS_27, importances):
-            result.append({
-                "feature": name,
-                "importance": round(float(val), 4)
-            })
+        total = max(sum(usage.values()), 1)
+        result = [
+            {"feature": col, "importance": round(cnt / total * 100, 4)}
+            for col, cnt in usage.items()
+        ]
+        # Add categorical features with zero usage (HGB doesn't use them)
+        result.append({"feature": "task_type", "importance": 0.0})
+        result.append({"feature": "required_skill", "importance": 0.0})
         result.sort(key=lambda x: x["importance"], reverse=True)
         return result
 
@@ -239,14 +310,17 @@ class ModelService:
                     prob_pred.append(float(np.mean(predictions[mask])))
                 points = []
                 for pt, pp in zip(prob_true, prob_pred):
-                    points.append({
-                        "predicted_probability": round(float(pp), 4),
-                        "observed_frequency": round(float(pt), 4)
-                    })
+                    points.append(
+                        {
+                            "predicted_probability": round(float(pp), 4),
+                            "observed_frequency": round(float(pt), 4),
+                        }
+                    )
                 return points
         except Exception as e:
             print(f"Error computing calibration curve: {e}")
         return []
+
 
 # Singleton instance
 model_service = ModelService()

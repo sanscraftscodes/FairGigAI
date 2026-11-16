@@ -6,18 +6,21 @@ dependencies = [
     "fastapi==0.142.2",
     "pydantic==2.12.4",
     "numpy==2.3.3",
-    "scipy==1.17.1",
-    "pandas==2.3.3",
     "joblib==1.5.3",
     "sqlalchemy==2.1.4",
     "psycopg[binary]==3.2.13",
     "httpx==0.28.1",
     "python-dotenv==1.1.1",
-    "six==1.17.0",
 ]
 
 [project.optional-dependencies]
-model-export = ["scikit-learn==1.6.1"]
+# Local training / model export only — NOT installed on Vercel
+model-training = [
+    "scikit-learn==1.6.1",
+    "catboost==1.2.10",
+    "scipy==1.17.1",
+    "pandas==2.3.3",
+]
 
 [tool.vercel]
 entrypoint = "backend.vercel_app:app"

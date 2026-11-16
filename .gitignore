@@ -15,3 +15,7 @@ backend/app/fairgig.db
 *.db-journal
 *.log
 ~$*
+
+# Transient model export artifacts (not needed in git)
+models/cat_model.cbm
+models/cat_model_debug.json
