@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm --prefix frontend ci && npm --prefix frontend run build",
+  "functions": {
+    "backend/vercel_app.py": {
+      "includeFiles": "{backend/app/**,data/**,models/**,predictions/**,frontend/dist/**}",
+      "excludeFiles": "{backend/app/fairgig.db,**/__pycache__/**,**/*.pyc}"
+    }
+  }
+}

@@ -1,0 +1,401 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Sparkles,
+  BrainCircuit,
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  RefreshCw,
+  Scale,
+  Users,
+  CheckCircle2,
+  FileCode,
+  Terminal,
+  Sliders,
+  ExternalLink
+} from 'lucide-react';
+import { explainAllocation } from '../api/client';
+
+interface ExplainableAIPanelProps {
+  taskId: string;
+  selectedWorker: any;
+  runnerUp?: any;
+  policy: string;
+  lambdaVal: number;
+}
+
+export const ExplainableAIPanel: React.FC<ExplainableAIPanelProps> = ({
+  taskId,
+  selectedWorker,
+  runnerUp,
+  policy,
+  lambdaVal,
+}) => {
+  const [provider, setProvider] = useState<string>('auto');
+  const [ollamaUrl, setOllamaUrl] = useState<string>(() => {
+    const savedUrl = localStorage.getItem('fairgig_ollama_url') || '';
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(?:\/|$)/i.test(savedUrl) ? '' : savedUrl;
+  });
+  const [showConfig, setShowConfig] = useState<boolean>(false);
+  const [showInspector, setShowInspector] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'explanation' | 'math' | 'runner_up' | 'sdg8'>('explanation');
+
+  const [loading, setLoading] = useState<boolean>(false);
+  const [result, setResult] = useState<any | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFetchExplanation = async (forceProvider?: string) => {
+    if (!selectedWorker) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await explainAllocation({
+        task_id: taskId,
+        worker_id: selectedWorker.worker_id,
+        runner_up_id: runnerUp?.worker_id,
+        policy,
+        lambda_val: lambdaVal,
+        provider: forceProvider || provider,
+        ollama_url: ollamaUrl || undefined,
+      });
+      setResult(res);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate explainable AI reasoning');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-fetch on mount if selectedWorker is available
+  useEffect(() => {
+    if (selectedWorker?.worker_id) {
+      handleFetchExplanation();
+    }
+  }, [selectedWorker?.worker_id, taskId, policy, lambdaVal]);
+
+  return (
+    <div className="bg-white rounded-3xl border border-[#EAE7F2] p-6 shadow-sm space-y-6">
+      {/* Header bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#EAE7F2]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-violet-600 to-[#8B7CF6] text-white flex items-center justify-center shadow-md">
+            <BrainCircuit className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base text-[#29263D]">
+                Explainable AI & Reasoning Engine (XAI)
+              </h3>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#F3F0FF] text-[#8B7CF6] border border-[#8B7CF6]/30">
+                SDG 8 Aligned
+              </span>
+            </div>
+            <p className="text-xs text-[#77748C]">
+              Transparent, prompt-engineered rationale explaining why Worker {selectedWorker?.worker_id} was selected over alternatives
+            </p>
+          </div>
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowConfig(!showConfig)}
+            className="px-3 py-1.5 rounded-xl border border-[#EAE7F2] text-xs font-semibold text-[#77748C] hover:bg-[#FAF9FE] flex items-center gap-1.5 transition-colors"
+          >
+            <span>LLM Setup</span>
+            {showConfig ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleFetchExplanation()}
+            disabled={loading}
+            className="px-4 py-1.5 rounded-xl bg-[#8B7CF6] hover:bg-[#7A6AE6] text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>{loading ? 'Synthesizing...' : 'Regenerate'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Collapsible API & Model Configuration */}
+      {showConfig && (
+        <div className="p-4 rounded-2xl bg-[#FAF9FE] border border-[#EAE7F2] space-y-4 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[#29263D] flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-[#8B7CF6]" />
+              LLM Inference Provider Settings
+            </span>
+            <span className="text-[11px] text-[#77748C]">
+              Server-configured Gemini, reachable Ollama, or deterministic Chain-of-Thought (CoT)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-[#77748C] mb-1">
+                Active Provider
+              </label>
+              <select
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                className="w-full text-xs bg-white border border-[#EAE7F2] rounded-xl px-3 py-2 text-[#29263D] focus:outline-none focus:border-[#8B7CF6]"
+              >
+                <option value="auto">Auto (Detects Best Gemini Model or Offline CoT)</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recommended)</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash Latest</option>
+                <option value="gemini-pro">Gemini Pro</option>
+                <option value="ollama">Ollama (Remote Endpoint)</option>
+                <option value="heuristic">FairGig Prompt-Engineered CoT (Offline)</option>
+              </select>
+            </div>
+          </div>
+
+          {provider === 'ollama' && (
+            <div>
+              <label className="block text-[11px] font-semibold text-[#77748C] mb-1">
+                Reachable Ollama Endpoint URL
+              </label>
+              <input
+                type="text"
+                placeholder="https://your-ollama-endpoint.example"
+                value={ollamaUrl}
+                onChange={(e) => {
+                  setOllamaUrl(e.target.value);
+                  localStorage.setItem('fairgig_ollama_url', e.target.value);
+                }}
+                className="w-full text-xs bg-white border border-[#EAE7F2] rounded-xl px-3 py-2 text-[#29263D] focus:outline-none focus:border-[#8B7CF6]"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Provider Pill & Status */}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-[#77748C]">Generated by:</span>
+          <span className="font-semibold text-[#29263D] px-2.5 py-1 rounded-xl bg-[#F3F0FF] border border-[#8B7CF6]/20 flex items-center gap-1.5">
+            <Cpu className="w-3.5 h-3.5 text-[#8B7CF6]" />
+            {result?.provider_used || 'Initializing Prompt Engine...'}
+          </span>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex items-center gap-1 p-1 bg-[#FAF9FE] rounded-2xl border border-[#EAE7F2]">
+          <button
+            onClick={() => setActiveTab('explanation')}
+            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'explanation'
+                ? 'bg-white text-[#8B7CF6] shadow-xs'
+                : 'text-[#77748C] hover:text-[#29263D]'
+            }`}
+          >
+            Rationale
+          </button>
+          <button
+            onClick={() => setActiveTab('math')}
+            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'math'
+                ? 'bg-white text-[#8B7CF6] shadow-xs'
+                : 'text-[#77748C] hover:text-[#29263D]'
+            }`}
+          >
+            Math Breakdown
+          </button>
+          <button
+            onClick={() => setActiveTab('runner_up')}
+            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'runner_up'
+                ? 'bg-white text-[#8B7CF6] shadow-xs'
+                : 'text-[#77748C] hover:text-[#29263D]'
+            }`}
+          >
+            Runner-Up Delta
+          </button>
+          <button
+            onClick={() => setActiveTab('sdg8')}
+            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'sdg8'
+                ? 'bg-white text-[#8B7CF6] shadow-xs'
+                : 'text-[#77748C] hover:text-[#29263D]'
+            }`}
+          >
+            SDG 8 Audit
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      {loading ? (
+        <div className="p-8 rounded-2xl bg-[#FAF9FE] border border-[#EAE7F2] text-center space-y-3">
+          <div className="w-8 h-8 rounded-full border-2 border-[#8B7CF6] border-t-transparent animate-spin mx-auto" />
+          <p className="text-xs font-medium text-[#77748C]">
+            Executing Multi-Stage Prompt Pipeline...
+          </p>
+          <span className="text-[11px] text-[#77748C]/70">
+            Evaluating ML ensembles, Jain fairness constraints, and candidate delta margins.
+          </span>
+        </div>
+      ) : error ? (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+          <strong>Notice:</strong> {error}
+        </div>
+      ) : result ? (
+        <div className="space-y-4">
+          {/* TAB 1: RATIONALE */}
+          {activeTab === 'explanation' && (
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#FAF9FE] to-white border border-[#EAE7F2] space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#8B7CF6] uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                Executive Decision Justification
+              </div>
+              <p className="text-xs text-[#29263D] leading-relaxed font-normal">
+                {result.executive_summary}
+              </p>
+              {result.explanation_markdown && result.explanation_markdown !== result.executive_summary && (
+                <div className="pt-3 border-t border-[#EAE7F2] text-xs text-[#77748C] leading-relaxed whitespace-pre-line">
+                  {result.explanation_markdown}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: MATHEMATICAL DECOMPOSITION */}
+          {activeTab === 'math' && (
+            <div className="p-5 rounded-2xl bg-[#FAF9FE] border border-[#EAE7F2] space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#29263D] flex items-center gap-2">
+                  <Scale className="w-4 h-4 text-[#8B7CF6]" />
+                  Workload-Aware Fair Ranking (WAFR) Decomposition
+                </span>
+                <span className="text-xs font-mono font-bold text-[#8B7CF6]">
+                  Total Score = {selectedWorker.wafr_score}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                <div className="p-3 bg-white rounded-xl border border-[#EAE7F2]">
+                  <span className="text-[10px] text-[#77748C] font-semibold block">ML Success (70%)</span>
+                  <span className="text-sm font-bold text-[#8B7CF6] block mt-1">
+                    +{(0.70 * selectedWorker.predicted_success).toFixed(4)}
+                  </span>
+                  <span className="text-[10px] text-[#77748C]">
+                    {(selectedWorker.predicted_success * 100).toFixed(1)}% prob
+                  </span>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-[#EAE7F2]">
+                  <span className="text-[10px] text-[#77748C] font-semibold block">Efficiency (30%)</span>
+                  <span className="text-sm font-bold text-blue-600 block mt-1">
+                    +{(0.30 * selectedWorker.efficiency).toFixed(4)}
+                  </span>
+                  <span className="text-[10px] text-[#77748C]">
+                    {selectedWorker.distance_km} km dist
+                  </span>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-[#EAE7F2]">
+                  <span className="text-[10px] text-[#77748C] font-semibold block">Opp. Credit (+λ)</span>
+                  <span className="text-sm font-bold text-emerald-600 block mt-1">
+                    +{(lambdaVal * selectedWorker.opportunity_credit).toFixed(4)}
+                  </span>
+                  <span className="text-[10px] text-[#77748C]">
+                    Credits: {selectedWorker.opportunity_credit?.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-[#EAE7F2]">
+                  <span className="text-[10px] text-[#77748C] font-semibold block">Workload Penalty (-λ)</span>
+                  <span className="text-sm font-bold text-rose-600 block mt-1">
+                    -{(lambdaVal * selectedWorker.workload_pressure).toFixed(4)}
+                  </span>
+                  <span className="text-[10px] text-[#77748C]">
+                    Pressure: {selectedWorker.workload_pressure?.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-xs text-[#77748C] bg-white p-3 rounded-xl border border-[#EAE7F2] font-mono leading-relaxed whitespace-pre-line">
+                {result.math_breakdown || 'Mathematical breakdown computed via calibrated ensemble weights.'}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: RUNNER UP COMPARATIVE DELTA */}
+          {activeTab === 'runner_up' && (
+            <div className="p-5 rounded-2xl bg-[#FAF9FE] border border-[#EAE7F2] space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#29263D]">
+                <Users className="w-4 h-4 text-[#8B7CF6]" />
+                Counterfactual Runner-Up Analysis
+              </div>
+              <p className="text-xs text-[#29263D] leading-relaxed whitespace-pre-line bg-white p-4 rounded-xl border border-[#EAE7F2]">
+                {result.runner_up_comparison}
+              </p>
+            </div>
+          )}
+
+          {/* TAB 4: SDG 8 AUDIT */}
+          {activeTab === 'sdg8' && (
+            <div className="p-5 rounded-2xl bg-[#FAF9FE] border border-[#EAE7F2] space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                UN SDG 8 (Decent Work & Economic Growth) Compliance
+              </div>
+              <p className="text-xs text-[#29263D] leading-relaxed whitespace-pre-line bg-white p-4 rounded-xl border border-[#EAE7F2]">
+                {result.sdg8_audit}
+              </p>
+            </div>
+          )}
+
+          {/* PROMPT INSPECTOR TOGGLE */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setShowInspector(!showInspector)}
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl bg-[#FAF9FE] hover:bg-[#F3F0FF] border border-[#EAE7F2] text-xs font-semibold text-[#8B7CF6] transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Terminal className="w-4 h-4" />
+                Prompt Engineering Trace & Hyperparameters
+              </span>
+              {showInspector ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            {showInspector && result.prompt_inspector && (
+              <div className="mt-3 p-4 rounded-2xl bg-[#1E1B2E] text-slate-200 text-xs font-mono space-y-3 shadow-inner overflow-x-auto">
+                <div className="flex items-center justify-between pb-2 border-b border-white/10 text-[11px] text-[#8B7CF6]">
+                  <span>TECHNIQUE: {result.prompt_inspector.prompt_engineering_technique}</span>
+                  <span>TEMP: {result.prompt_inspector.temperature} | TOP-P: {result.prompt_inspector.top_p || 0.95}</span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-violet-400 block mb-1">
+                    System Instruction (Role & Constraint Prompting):
+                  </span>
+                  <pre className="text-[11px] text-slate-300 whitespace-pre-wrap bg-black/30 p-2.5 rounded-xl border border-white/5">
+                    {result.prompt_inspector.system_prompt}
+                  </pre>
+                </div>
+
+                {result.prompt_inspector.user_prompt && (
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-emerald-400 block mb-1">
+                      Injected User Prompt & Structured Context:
+                    </span>
+                    <pre className="text-[11px] text-slate-300 whitespace-pre-wrap bg-black/30 p-2.5 rounded-xl border border-white/5 max-h-48 overflow-y-auto">
+                      {result.prompt_inspector.user_prompt}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+};

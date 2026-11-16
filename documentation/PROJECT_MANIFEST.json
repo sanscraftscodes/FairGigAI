@@ -1,0 +1,31 @@
+{
+  "project": "FairGig AI",
+  "title": "FairGig AI \u2014 Multi-Agent AI System for Fair and Explainable Gig Task Allocation",
+  "artifact_type": "Final ML Model Handoff",
+  "created_at": "2026-09-27T17:54:50.778754",
+  "model_task": "Worker-task success prediction and fair task allocation",
+  "model_selection": "Validation-based ensemble selection",
+  "evaluation": "Held-out task-grouped test set",
+  "fairness_layer": "WAFR",
+  "important_note": "The reported overall PR-AUC is evaluated over all candidate pairs. An eligible-only evaluation should also be reported because the actual allocation decision is made among eligible workers.",
+  "final_reported_metrics": {
+    "roc_auc_approx": 0.9561,
+    "pr_auc_approx": 0.2431,
+    "brier_approx": 0.0187,
+    "counterfactual_workload_plus_3_switch_rate": 0.044
+  },
+  "data_scale": {
+    "workers": 1000,
+    "tasks": 3000,
+    "candidate_pairs": 300000
+  },
+  "allocation_formula": "0.70 * predicted_success + 0.30 * efficiency + lambda * opportunity_credit - lambda * workload_pressure",
+  "artifact_usage": [
+    "Backend model inference",
+    "Worker ranking",
+    "Fair task allocation",
+    "Explainability",
+    "Research evaluation",
+    "Prototype integration"
+  ]
+}

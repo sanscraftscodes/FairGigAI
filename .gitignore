@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+.vercel/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+frontend/node_modules/
+frontend/dist/
+backend/app/fairgig.db
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.log
+~$*

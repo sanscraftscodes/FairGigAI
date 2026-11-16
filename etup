@@ -1,0 +1,22 @@
+FAIRGIG_AI_DEMO_SCRIPT_AND_GUIDE.md:2: trailing whitespace.
+[32m+[m[32m**Course**: Prompt Engineering & Advanced AI Systems[m[41m  [m
+FAIRGIG_AI_DEMO_SCRIPT_AND_GUIDE.md:3: trailing whitespace.
+[32m+[m[32m**Project**: FairGig AI — Multi-Agent AI System for Fair and Explainable Gig Task Allocation[m[41m  [m
+FAIRGIG_AI_DEMO_SCRIPT_AND_GUIDE.md:4: trailing whitespace.
+[32m+[m[32m**Alignment**: UN Sustainable Development Goal 8 (Decent Work and Economic Growth)[m[41m  [m
+FAIRGIG_AI_DEMO_SCRIPT_AND_GUIDE.md:5: trailing whitespace.
+[32m+[m[32m**Word File Available**: `FairGig_AI_Demo_Presentation_Script_and_Guide.docx` in the project root[m[41m  [m
+FAIRGIG_AI_DEMO_SCRIPT_AND_GUIDE.md:36: trailing whitespace.
+[32m+[m[32m**In simple words**: Chain-of-Thought is a prompt engineering technique where instead of asking an LLM to give an immediate answer, we force the model to break down its reasoning into sequential logical steps (`Step 1: Constraint Verification` $\to$ `Step 2: ML Probability Weighting` $\to$ `Step 3: Runner-Up Contrast` $\to$ `Step 4: Ethical UN SDG 8 Audit`).[m[41m  [m
+FAIRGIG_AI_PRESENTATION_DEFENSE_GUIDE.md:2: trailing whitespace.
+[32m+[m[32m**Course**: Prompt Engineering / Advanced AI Systems[m[41m  [m
+FAIRGIG_AI_PRESENTATION_DEFENSE_GUIDE.md:3: trailing whitespace.
+[32m+[m[32m**Project**: FairGig AI — Multi-Agent AI System for Fair and Explainable Gig Task Allocation[m[41m  [m
+FAIRGIG_AI_PRESENTATION_DEFENSE_GUIDE.md:4: trailing whitespace.
+[32m+[m[32m**Alignment**: United Nations Sustainable Development Goal 8 (Decent Work and Economic Growth)[m[41m  [m
+FAIRGIG_AI_PRESENTATION_DEFENSE_GUIDE.md:5: trailing whitespace.
+[32m+[m[32m**Authors**: Final Year B.Tech Project Team[m[41m  [m
+FAIRGIG_AI_PRESENTATION_DEFENSE_GUIDE.md:11: trailing whitespace.
+[32m+[m[32m**FairGig AI** is a full-stack, multi-agent AI system designed to solve the algorithmic bias, worker burnout, and "black-box" opacity prevalent in modern gig platforms (e.g., food delivery, ride-hailing, package courier networks).[m[41m [m
+FAIRGIG_AI_PRESENTATION_DEFENSE_GUIDE.md:54: trailing whitespace.
+[32m+[m[32mTraditional ML outputs a raw probability (e.g., `0.5824`). A mathematical formula outputs a score (e.g., `0.4663`). Neither of these provides **legally defensible, human-comprehensible transparency** to a gig worker or platform auditor.[m[41m [m

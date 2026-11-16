@@ -1,0 +1,63 @@
+{
+  "project": "FairGig AI",
+  "version": "1.0.0",
+  "total_features": 27,
+  "categorical_features": [
+    "task_type",
+    "required_skill"
+  ],
+  "numeric_features": [
+    "priority_num",
+    "estimated_duration_min",
+    "deadline_min",
+    "payment",
+    "package_weight_kg",
+    "distance_km",
+    "deadline_pressure",
+    "experience_years",
+    "historical_success_7d",
+    "historical_success_30d",
+    "historical_success_90d",
+    "cancellation_7d",
+    "cancellation_30d",
+    "delay_7d",
+    "delay_30d",
+    "work_hours_7d",
+    "work_hours_30d",
+    "workload_trend",
+    "recent_exposure",
+    "task_affinity",
+    "skill_match",
+    "vehicle_match",
+    "weight_ok",
+    "available",
+    "deadline_feasible"
+  ],
+  "excluded_generation_variables": [
+    "_latent_reliability",
+    "_latent_consistency",
+    "generation_score"
+  ],
+  "ensemble": {
+    "HistGradientBoosting": {
+      "weight": 0.5,
+      "features": 25,
+      "feature_type": "numeric_only"
+    },
+    "CatBoost": {
+      "weight": 0.5,
+      "features": 27,
+      "feature_type": "all_with_native_categoricals",
+      "cat_indices": [0, 1]
+    },
+    "XGBoost": {
+      "weight": 0.0,
+      "feature_type": "encoded_numeric"
+    },
+    "LightGBM": {
+      "weight": 0.0,
+      "feature_type": "encoded_numeric"
+    },
+    "ensemble_threshold": 0.155
+  }
+}
