@@ -3,6 +3,8 @@ import logging
 import os
 from typing import Any, Dict, Optional
 
+import httpx
+
 from app.services.llm_explainability_service import (
     PROMPT_ENGINEERING_TECHNIQUE,
     SYSTEM_PROMPT,
@@ -58,19 +60,36 @@ def _record_availability(available: bool) -> None:
     _last_available = available
 
 
-def _create_gemini_model(api_key: str) -> Any:
-    import google.generativeai as genai
-
-    genai.configure(api_key=api_key)
-    return genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        system_instruction=SYSTEM_PROMPT,
-        generation_config={
-            "temperature": 0.2,
-            "top_p": 0.95,
-            "max_output_tokens": 1024,
-        },
+async def _request_gemini(api_key: str, prompt: str) -> str:
+    endpoint = (
+        "https://generativelanguage.googleapis.com/v1beta/"
+        f"models/{GEMINI_MODEL}:generateContent"
     )
+    payload = {
+        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "topP": 0.95,
+            "maxOutputTokens": 1024,
+        },
+    }
+
+    async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT_SECONDS) as client:
+        response = await client.post(
+            endpoint,
+            headers={"x-goog-api-key": api_key},
+            json=payload,
+        )
+    response.raise_for_status()
+    candidates = response.json().get("candidates", [])
+    if not candidates:
+        raise ValueError("Gemini returned no candidate explanation")
+    parts = candidates[0].get("content", {}).get("parts", [])
+    text = "".join(part.get("text", "") for part in parts)
+    if not text.strip():
+        raise ValueError("Gemini returned an empty explanation")
+    return text
 
 
 def _offline_result(prompt_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -106,14 +125,10 @@ async def generate_agent_explanation(prompt_data: Dict[str, Any]) -> Dict[str, A
         return _offline_result(prompt_data)
 
     try:
-        model = _create_gemini_model(api_key)
-        response = await asyncio.wait_for(
-            model.generate_content_async(build_user_prompt(prompt_data)),
+        text = await asyncio.wait_for(
+            _request_gemini(api_key, build_user_prompt(prompt_data)),
             timeout=GEMINI_TIMEOUT_SECONDS,
         )
-        text = response.text or ""
-        if not text.strip():
-            raise ValueError("Gemini returned an empty explanation")
 
         sections = _extract_sections(text)
         _record_availability(True)

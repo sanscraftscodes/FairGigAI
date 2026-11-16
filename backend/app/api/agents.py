@@ -12,7 +12,7 @@ from app.agents.fairness_evaluation import FairnessEvaluationAgent
 from app.agents.allocation_agent import AllocationAgent
 from app.agents.explainability import ExplainabilityAgent
 from app.services.model_service import model_service
-from app.services.feature_builder import build_features_dataframe
+from app.services.feature_builder import build_feature_rows
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
 
@@ -126,8 +126,10 @@ def run_agents_workflow(payload: AgentRunRequest, db: Session = Depends(get_db))
     ml_start = time.time()
     if eligible_candidates:
         feature_rows = [c["features"] for c in eligible_candidates]
-        df_feat = build_features_dataframe(feature_rows)
-        ens_probs, hgb_probs, cat_probs = model_service.predict_probabilities(df_feat)
+        ordered_feature_rows = build_feature_rows(feature_rows)
+        ens_probs, hgb_probs, cat_probs = model_service.predict_probabilities(
+            ordered_feature_rows
+        )
 
         for i, c in enumerate(eligible_candidates):
             c["predicted_success"] = round(float(ens_probs[i]), 4)

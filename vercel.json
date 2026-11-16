@@ -4,10 +4,11 @@
     "app": {
       "root": ".",
       "framework": "fastapi",
+      "installCommand": "python -m pip install -r requirements-vercel.txt && python -m pip install --no-deps catboost==1.2.10 && python backend/scripts/prune_catboost_assets.py",
       "functions": {
         "backend/vercel_app.py": {
-          "includeFiles": "{backend/app/**,data/**,models/**,predictions/**}",
-          "excludeFiles": "{backend/app/fairgig.db,**/__pycache__/**,**/*.pyc}"
+          "includeFiles": "{backend/app/**,backend/vercel_app.py,data/tasks.csv,data/workers.csv,models/cat_model.joblib,models/ensemble_configuration.json,models/hist_gradient_boosting.json,predictions/ensemble_test.csv,predictions/y_test.csv}",
+          "excludeFiles": "{backend/tests/**,backend/scripts/**,backend/generate_*.py,backend/app/fairgig.db,models/all_trained_models.joblib,frontend/**,documentation/**,**/__pycache__/**,**/*.pyc,**/*.md,**/*.docx,**/*.zip,**/*.bat}"
         }
       }
     },

@@ -31,23 +31,51 @@ document the following Fluid Compute limits for Hobby:
 - **Fluid Compute:** enabled by default for new projects; it allows warm
   function instances to process later requests.
 
-The included model files total about 6.2 MB, and the CSV and held-out prediction
-data total about 2.5 MB. Dependencies are pinned in the root
-[requirements.txt](./requirements.txt). A Python 3.12 Linux wheel audit resolved
-831.6 MiB of uncompressed dependency contents, before the application and model
-files; this exceeds the standard 500 MB limit. An authenticated Vercel build is
-still required to determine the actual function bundle size. Do not treat
-deployment as viable on Hobby unless the bundle fits the limit; the 5-GB option
-is Beta and is not assumed here. Function request/response payload limits still apply; the app's
-current dashboard, paginated APIs, and CSV exports are intended for small
-interactive requests, not uploading large datasets. Vercel documents a 4.5 MB
-maximum for request and response bodies (except streamed responses).
+The original pinned dependency set expanded to 831.57 MiB on Linux/Python 3.12,
+which matched the reported serverless bundle failure. The app service now uses
+the separately pinned [requirements-vercel.txt](./requirements-vercel.txt) and
+a custom install command. CatBoost is installed with `--no-deps` because the
+wheel declares plotting and notebook packages that are not used for inference;
+its NumPy, SciPy, Pandas, and `six` runtime dependencies are installed
+explicitly. Pandas remains necessary because CatBoost's native extension
+imports it when loading; the backend itself no longer uses Pandas for data
+processing. The install step removes CatBoost's notebook widget files, the
+Pandas test suite, and SciPy subpackages outside `_lib` and `sparse`. A
+deployment-equivalent import and inference check passed with the pruned
+packages and without sklearn, plotting, notebook, or Google SDK packages.
 
-The model is loaded on first model-status or inference use and retained in a
-warm Python process. Cold instances still pay for Python/native-library imports
-and loading both existing trained models. Fluid Compute reuse is opportunistic,
-not a persistence or uptime guarantee; no keep-alive pings are used. The first
-database initialization also seeds demo records from the included CSV files.
+The Gemini integration now uses the REST API through `httpx`, avoiding the
+Google SDK's large API-client and gRPC dependency tree. Backend feature building,
+seeding, and fairness aggregation use the standard library and NumPy instead of
+Pandas. The original HistGradientBoosting estimator is retained in
+`models/all_trained_models.joblib`; the checked-in 0.37 MiB JSON inference
+artifact is exported from that estimator and scored by a compact pure-Python
+tree evaluator. A test compares its scores with the original estimator to a
+1e-12 absolute tolerance. The original CatBoost model and ensemble weights are
+still loaded and scored by CatBoost.
+
+An audit of the pinned official PyPI Linux CPython 3.12 wheels, after applying
+the configured pruning, measured 435.65 MiB of runtime packages. The selected
+backend, CSV, and model files add 3.98 MiB, for an estimated uncompressed
+function bundle of 439.63 MiB (about 460.98 MB decimal), approximately 39 MB
+below a 500 MB limit. `vercel.json` scopes model/data inclusion and excludes
+the frontend, documentation, tests, local SQLite database, and original HGB
+training artifact from the Python function. This is a package-and-file build
+equivalent, not a live Vercel deployment measurement; verify the next Vercel
+build output before treating the production deployment as successful. The
+5-GB large-function option is Beta and is not assumed here.
+
+Function request/response payload limits still apply; the app's current
+dashboard, paginated APIs, and CSV exports are intended for small interactive
+requests, not uploading large datasets. Vercel documents a 4.5 MB maximum for
+request and response bodies (except streamed responses).
+
+Both deployed model components are loaded on first model-status or inference
+use and reused in a warm Python process. Cold instances still pay for Python
+and native-library imports and loading the CatBoost artifact. Fluid Compute
+reuse is opportunistic, not a persistence or uptime guarantee; no keep-alive
+pings are used. The first database initialization also seeds demo records from
+the included CSV files.
 
 ## 1. Create the persistent database
 
@@ -100,11 +128,13 @@ available to scan for previously committed secrets.
    `frontend` (Vite, root `frontend`). It routes `/api` and `/api/*` to `app`
    and all other paths to `frontend`. Do not add a rewrite to an external
    backend origin.
-5. `pyproject.toml` selects Python 3.12 and the FastAPI entrypoint; this matches
-   the tested scikit-learn 1.6.1 model serialization and has compatible Linux
-   wheels. Its pinned `project.dependencies` matches the root `requirements.txt`
-   so Vercel can install the complete backend dependency set during service
-   builds; local development can continue using `pip install -r requirements.txt`.
+5. `pyproject.toml` selects Python 3.12 and the FastAPI entrypoint. The app
+   service's `installCommand` installs the small, pinned runtime manifest and
+   then installs only CatBoost's inference runtime, avoiding its unused plotting
+   and widget dependencies. Local development uses the full
+   [requirements.txt](./requirements.txt); regenerate the compact HGB artifact
+   after changing the trained estimator with
+   `python backend/scripts/export_hgb_inference.py`.
 6. Under **Settings → Environment Variables**, add:
    - `DATABASE_URL`: the Supabase **Session pooler** URI, server-side only.
    - `GEMINI_API_KEY` (optional): the backend uses Gemini `gemini-3.6-flash`
@@ -138,8 +168,9 @@ After deployment, replace `<DEPLOYMENT>` with the assigned Vercel URL:
   history/report endpoints and download a report.
 
 Do not announce a successful deployment until the actual public URL and these
-checks have been tested. This workspace has not yet been connected to GitHub,
-Supabase, or an authenticated Vercel account.
+checks have been tested. This checkout has no local Vercel project link or authenticated CLI session.
+Use the existing GitHub-to-Vercel integration to run and inspect the deployment
+build after pushing changes.
 
 ## Local checks
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-import pandas as pd
+from collections import Counter
 import numpy as np
 
 from app.db.database import get_db
@@ -23,9 +23,9 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
     if allocations:
         avg_pred_success = float(np.mean([a.predicted_success for a in allocations]))
         worker_ids = [a.worker_id for a in allocations]
-        exp_series = pd.Series(worker_ids).value_counts()
-        jain_fairness = calculate_jain_index(exp_series)
-        gini_exposure = calculate_gini_index(exp_series)
+        exposure_counts = Counter(worker_ids)
+        jain_fairness = calculate_jain_index(list(exposure_counts.values()))
+        gini_exposure = calculate_gini_index(list(exposure_counts.values()))
     else:
         avg_pred_success = 0.0
         jain_fairness = 0.0

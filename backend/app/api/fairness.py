@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-import pandas as pd
+from collections import Counter
 import numpy as np
 
 from app.db.database import get_db
@@ -19,17 +19,17 @@ def get_fairness_summary(db: Session = Depends(get_db)):
 
     if allocations:
         worker_ids = [a.worker_id for a in allocations]
-        exp_series = pd.Series(worker_ids).value_counts()
-        jain = calculate_jain_index(exp_series)
-        gini = calculate_gini_index(exp_series)
-        coverage = len(exp_series) / max(1, total_workers)
+        exposure_counts = Counter(worker_ids)
+        jain = calculate_jain_index(list(exposure_counts.values()))
+        gini = calculate_gini_index(list(exposure_counts.values()))
+        coverage = len(exposure_counts) / max(1, total_workers)
         zero_exposure = 1.0 - coverage
         avg_workload = float(np.mean([w.working_hours_7d for w in workers]))
 
         # Top exposed workers
         dist_exposure = [
-            {"worker_id": wid, "tasks_allocated": int(cnt)}
-            for wid, cnt in exp_series.head(10).items()
+            {"worker_id": worker_id, "tasks_allocated": count}
+            for worker_id, count in exposure_counts.most_common(10)
         ]
     else:
         jain = 0.0

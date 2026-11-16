@@ -1,6 +1,5 @@
 import numpy as np
-import pandas as pd
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Sequence, Tuple
 
 def compute_efficiency(distance_km: np.ndarray, deadline_pressure: np.ndarray) -> np.ndarray:
     """
@@ -24,9 +23,21 @@ def compute_opportunity_credit(recent_exposure: np.ndarray) -> np.ndarray:
     Computes opportunity credit = 1 - percentile_rank(recent_exposure)
     Workers with lower recent exposure receive higher opportunity credit.
     """
-    s = pd.Series(recent_exposure)
-    pct_rank = s.rank(pct=True).values
-    return 1.0 - pct_rank
+    values = np.asarray(recent_exposure)
+    if values.size == 0:
+        return np.array([], dtype=float)
+
+    order = np.argsort(values, kind="stable")
+    ranks = np.empty(values.size, dtype=float)
+    start = 0
+    while start < values.size:
+        end = start + 1
+        while end < values.size and values[order[end]] == values[order[start]]:
+            end += 1
+        average_rank = ((start + 1) + end) / 2.0
+        ranks[order[start:end]] = average_rank / values.size
+        start = end
+    return 1.0 - ranks
 
 def compute_workload_pressure(work_hours_7d: np.ndarray, median_work_hours: float = 20.0) -> np.ndarray:
     """
@@ -55,14 +66,14 @@ def compute_wafr_score(
     )
     return float(score)
 
-def calculate_jain_index(allocations_series: pd.Series) -> float:
+def calculate_jain_index(allocations: Sequence[float]) -> float:
     """
     Jain's Fairness Index across worker exposure counts:
     J = (sum(x_i))^2 / (n * sum(x_i^2))
     """
-    if allocations_series.empty:
+    x = np.asarray(allocations, dtype=float)
+    if x.size == 0:
         return 0.0
-    x = allocations_series.values
     n = len(x)
     sum_x = np.sum(x)
     sum_x_sq = np.sum(x**2)
@@ -70,14 +81,14 @@ def calculate_jain_index(allocations_series: pd.Series) -> float:
         return 1.0
     return float((sum_x**2) / (n * sum_x_sq + 1e-9))
 
-def calculate_gini_index(allocations_series: pd.Series) -> float:
+def calculate_gini_index(allocations: Sequence[float]) -> float:
     """
     Gini Index of worker exposure:
     G = sum(|x_i - x_j|) / (2 * n^2 * mean(x))
     """
-    if allocations_series.empty:
+    x = np.asarray(allocations, dtype=float)
+    if x.size == 0:
         return 0.0
-    x = allocations_series.values
     n = len(x)
     mean_x = np.mean(x)
     if mean_x == 0:

@@ -1,5 +1,5 @@
+import math
 from typing import Any, Dict
-import pandas as pd
 from app.services.eligibility import haversine_distance
 
 FEATURE_COLUMNS_27 = [
@@ -80,7 +80,9 @@ def extract_candidate_features(task: Any, worker: Any) -> Dict[str, Any]:
     # Task affinity from worker record
     affinity_attr = f"success_{str(task.task_type).lower()}"
     affinity = getattr(worker, affinity_attr, None)
-    if affinity is None or pd.isna(affinity):
+    if affinity is None or (
+        isinstance(affinity, (int, float)) and math.isnan(affinity)
+    ):
         affinity = getattr(worker, "success_rate_30d", 0.75)
 
     row = {
@@ -115,7 +117,9 @@ def extract_candidate_features(task: Any, worker: Any) -> Dict[str, Any]:
 
     return row
 
-def build_features_dataframe(candidate_rows: list) -> pd.DataFrame:
-    """Builds a Pandas DataFrame with guaranteed column order."""
-    df = pd.DataFrame(candidate_rows)
-    return df[FEATURE_COLUMNS_27]
+def build_feature_rows(candidate_rows: list) -> list:
+    """Returns candidate features in the exact trained-model column order."""
+    return [
+        {column: row[column] for column in FEATURE_COLUMNS_27}
+        for row in candidate_rows
+    ]

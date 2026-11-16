@@ -1,9 +1,9 @@
 import asyncio
 import os
 import unittest
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -38,57 +38,81 @@ class AIServiceTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_missing_key_uses_offline_explanation(self):
         with patch.dict(os.environ, {"GEMINI_API_KEY": ""}), patch.object(
-            ai_service, "_create_gemini_model"
-        ) as create_model:
+            ai_service, "_request_gemini"
+        ) as request_gemini:
             result = await ai_service.generate_agent_explanation(make_prompt_data())
 
-        create_model.assert_not_called()
+        request_gemini.assert_not_called()
         self.assertEqual(result["provider"], "offline")
         self.assertEqual(result["mode"], "offline")
         self.assertTrue(result["fallback_used"])
         self.assertIn("WORKER-1", result["explanation_markdown"])
 
     async def test_gemini_success_returns_online_explanation(self):
-        response = type(
-            "GeminiResponse",
-            (),
-            {
-                "text": (
-                    "## 1. Executive Allocation Summary\nWorker selected.\n"
-                    "## 2. Mathematical Score Decomposition\nScore details.\n"
-                    "## 3. Runner-Up Comparative Analysis\nNo runner-up.\n"
-                    "## 4. UN SDG 8 Alignment & Ethical Audit\nFairness details."
-                )
-            },
-        )()
-        model = type(
-            "GeminiModel",
-            (),
-            {"generate_content_async": AsyncMock(return_value=response)},
-        )()
+        explanation = (
+            "## 1. Executive Allocation Summary\nWorker selected.\n"
+            "## 2. Mathematical Score Decomposition\nScore details.\n"
+            "## 3. Runner-Up Comparative Analysis\nNo runner-up.\n"
+            "## 4. UN SDG 8 Alignment & Ethical Audit\nFairness details."
+        )
         test_key = "test-gemini-secret"
         with patch.dict(os.environ, {"GEMINI_API_KEY": test_key}), patch.object(
-            ai_service, "_create_gemini_model", return_value=model
-        ) as create_model:
+            ai_service, "_request_gemini", new=AsyncMock(return_value=explanation)
+        ) as request_gemini:
             result = await ai_service.generate_agent_explanation(make_prompt_data())
             status = ai_service.get_ai_status()
 
-        create_model.assert_called_once_with(test_key)
+        request_gemini.assert_awaited_once()
+        self.assertEqual(request_gemini.await_args.args[0], test_key)
         self.assertEqual(result["provider"], "gemini")
         self.assertEqual(result["mode"], "online")
         self.assertFalse(result["fallback_used"])
         self.assertNotIn(test_key, repr(result))
         self.assertTrue(status["available"])
 
+    async def test_gemini_rest_request_keeps_key_in_header(self):
+        test_key = "test-gemini-secret"
+        request_details = {}
+
+        class FakeResponse:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {
+                    "candidates": [
+                        {"content": {"parts": [{"text": "Decision explanation"}]}}
+                    ]
+                }
+
+        class FakeClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return None
+
+            async def post(self, url, *, headers, json):
+                request_details.update(url=url, headers=headers, payload=json)
+                return FakeResponse()
+
+        with patch.object(ai_service.httpx, "AsyncClient", return_value=FakeClient()):
+            result = await ai_service._request_gemini(test_key, "prompt")
+
+        self.assertEqual(result, "Decision explanation")
+        self.assertEqual(request_details["headers"]["x-goog-api-key"], test_key)
+        self.assertNotIn(test_key, request_details["url"])
+        self.assertEqual(
+            request_details["payload"]["contents"][0]["parts"][0]["text"],
+            "prompt",
+        )
+
     async def test_gemini_error_uses_fallback_without_leaking_error(self):
         test_key = "test-gemini-secret"
-        model = type(
-            "GeminiModel",
-            (),
-            {"generate_content_async": AsyncMock(side_effect=RuntimeError(test_key))},
-        )()
         with patch.dict(os.environ, {"GEMINI_API_KEY": test_key}), patch.object(
-            ai_service, "_create_gemini_model", return_value=model
+            ai_service,
+            "_request_gemini",
+            new=AsyncMock(side_effect=RuntimeError(test_key)),
         ):
             result = await ai_service.generate_agent_explanation(make_prompt_data())
             status = ai_service.get_ai_status()
@@ -102,13 +126,12 @@ class AIServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(test_key, repr(result))
 
     async def test_gemini_timeout_uses_offline_fallback(self):
-        async def delayed_response(_prompt):
+        async def delayed_response(_api_key, _prompt):
             await asyncio.sleep(0.05)
 
-        model = SimpleNamespace(generate_content_async=delayed_response)
         with (
             patch.dict(os.environ, {"GEMINI_API_KEY": "test-gemini-secret"}),
-            patch.object(ai_service, "_create_gemini_model", return_value=model),
+            patch.object(ai_service, "_request_gemini", side_effect=delayed_response),
             patch.object(ai_service, "GEMINI_TIMEOUT_SECONDS", 0.001),
         ):
             result = await ai_service.generate_agent_explanation(make_prompt_data())
@@ -118,11 +141,11 @@ class AIServiceTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_status_does_not_make_provider_request(self):
         with patch.dict(os.environ, {"GEMINI_API_KEY": "test-gemini-secret"}), patch.object(
-            ai_service, "_create_gemini_model"
-        ) as create_model:
+            ai_service, "_request_gemini"
+        ) as request_gemini:
             status = ai_service.get_ai_status()
 
-        create_model.assert_not_called()
+        request_gemini.assert_not_called()
         self.assertEqual(status["mode"], "configured")
         self.assertFalse(status["available"])
         self.assertTrue(status["fallback_enabled"])

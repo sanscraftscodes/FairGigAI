@@ -1,10 +1,20 @@
+import csv
 import json
 from datetime import datetime, timedelta
-import pandas as pd
 from sqlalchemy import text
 from app.config import DATA_DIR
 from app.db.database import engine, SessionLocal, Base
 from app.db.models import TaskModel, WorkerModel, AllocationRecordModel, AgentExecutionLogModel
+
+
+def _csv_value(row, key, default):
+    value = row.get(key)
+    return default if value is None or value == "" else value
+
+
+def _csv_bool(value):
+    return str(value).strip().lower() in {"1", "true", "yes"}
+
 
 def seed_database():
     print(f"Initializing database with {engine.dialect.name}.")
@@ -27,46 +37,47 @@ def seed_database():
             workers_csv = DATA_DIR / "workers.csv"
             if workers_csv.exists():
                 print(f"Loading workers from {workers_csv}...")
-                df_workers = pd.read_csv(workers_csv)
-                for _, row in df_workers.iterrows():
+                with open(workers_csv, newline="", encoding="utf-8") as file:
+                    worker_rows = list(csv.DictReader(file))
+                for row in worker_rows:
                     worker = WorkerModel(
                         worker_id=str(row["worker_id"]),
-                        experience_years=float(row.get("experience_years", 2.0)),
-                        current_lat=float(row.get("current_lat", 18.5204)),
-                        current_lon=float(row.get("current_lon", 73.8567)),
-                        availability_status=str(row.get("availability_status", "available")),
-                        worker_status=str(row.get("worker_status", "active")),
-                        vehicle_type=str(row.get("vehicle_type", "bike")),
-                        vehicle_available=bool(row.get("vehicle_available", True)),
-                        max_package_weight_kg=float(row.get("max_package_weight_kg", 15.0)),
-                        archetype=str(row.get("archetype", "balanced")),
-                        skills=str(row.get("skills", "driving,navigation")),
-                        historical_tasks_7d=int(row.get("historical_tasks_7d", 12)),
-                        historical_tasks_30d=int(row.get("historical_tasks_30d", 48)),
-                        historical_tasks_90d=int(row.get("historical_tasks_90d", 130)),
-                        success_rate_7d=float(row.get("success_rate_7d", 0.85)),
-                        success_rate_30d=float(row.get("success_rate_30d", 0.85)),
-                        success_rate_90d=float(row.get("success_rate_90d", 0.85)),
-                        cancellation_rate_7d=float(row.get("cancellation_rate_7d", 0.05)),
-                        cancellation_rate_30d=float(row.get("cancellation_rate_30d", 0.05)),
-                        avg_delay_min_7d=float(row.get("avg_delay_min_7d", 6.0)),
-                        avg_delay_min_30d=float(row.get("avg_delay_min_30d", 6.0)),
-                        working_hours_7d=float(row.get("working_hours_7d", 22.0)),
-                        working_hours_30d=float(row.get("working_hours_30d", 88.0)),
-                        working_hours_90d=float(row.get("working_hours_90d", 240.0)),
-                        success_delivery=float(row.get("success_delivery", 0.75)),
-                        success_medicine=float(row.get("success_medicine", 0.75)),
-                        success_food=float(row.get("success_food", 0.75)),
-                        success_fragile=float(row.get("success_fragile", 0.75)),
-                        success_document=float(row.get("success_document", 0.75)),
-                        success_grocery=float(row.get("success_grocery", 0.75)),
-                        workload_trend=float(row.get("workload_trend", 0.0)),
-                        recent_exposure=float(row.get("recent_exposure", 0.25)),
+                        experience_years=float(_csv_value(row, "experience_years", 2.0)),
+                        current_lat=float(_csv_value(row, "current_lat", 18.5204)),
+                        current_lon=float(_csv_value(row, "current_lon", 73.8567)),
+                        availability_status=str(_csv_value(row, "availability_status", "available")),
+                        worker_status=str(_csv_value(row, "worker_status", "active")),
+                        vehicle_type=str(_csv_value(row, "vehicle_type", "bike")),
+                        vehicle_available=_csv_bool(_csv_value(row, "vehicle_available", True)),
+                        max_package_weight_kg=float(_csv_value(row, "max_package_weight_kg", 15.0)),
+                        archetype=str(_csv_value(row, "archetype", "balanced")),
+                        skills=str(_csv_value(row, "skills", "driving,navigation")),
+                        historical_tasks_7d=int(_csv_value(row, "historical_tasks_7d", 12)),
+                        historical_tasks_30d=int(_csv_value(row, "historical_tasks_30d", 48)),
+                        historical_tasks_90d=int(_csv_value(row, "historical_tasks_90d", 130)),
+                        success_rate_7d=float(_csv_value(row, "success_rate_7d", 0.85)),
+                        success_rate_30d=float(_csv_value(row, "success_rate_30d", 0.85)),
+                        success_rate_90d=float(_csv_value(row, "success_rate_90d", 0.85)),
+                        cancellation_rate_7d=float(_csv_value(row, "cancellation_rate_7d", 0.05)),
+                        cancellation_rate_30d=float(_csv_value(row, "cancellation_rate_30d", 0.05)),
+                        avg_delay_min_7d=float(_csv_value(row, "avg_delay_min_7d", 6.0)),
+                        avg_delay_min_30d=float(_csv_value(row, "avg_delay_min_30d", 6.0)),
+                        working_hours_7d=float(_csv_value(row, "working_hours_7d", 22.0)),
+                        working_hours_30d=float(_csv_value(row, "working_hours_30d", 88.0)),
+                        working_hours_90d=float(_csv_value(row, "working_hours_90d", 240.0)),
+                        success_delivery=float(_csv_value(row, "success_delivery", 0.75)),
+                        success_medicine=float(_csv_value(row, "success_medicine", 0.75)),
+                        success_food=float(_csv_value(row, "success_food", 0.75)),
+                        success_fragile=float(_csv_value(row, "success_fragile", 0.75)),
+                        success_document=float(_csv_value(row, "success_document", 0.75)),
+                        success_grocery=float(_csv_value(row, "success_grocery", 0.75)),
+                        workload_trend=float(_csv_value(row, "workload_trend", 0.0)),
+                        recent_exposure=float(_csv_value(row, "recent_exposure", 0.25)),
                         total_tasks_allocated=0,
                         is_synthetic=False
                     )
                     db.add(worker)
-                print(f"Successfully loaded {len(df_workers)} workers.")
+                print(f"Successfully loaded {len(worker_rows)} workers.")
             else:
                 print(f"Workers CSV not found at {workers_csv}")
         else:
@@ -76,30 +87,31 @@ def seed_database():
             tasks_csv = DATA_DIR / "tasks.csv"
             if tasks_csv.exists():
                 print(f"Loading tasks from {tasks_csv}...")
-                df_tasks = pd.read_csv(tasks_csv)
-                for _, row in df_tasks.iterrows():
+                with open(tasks_csv, newline="", encoding="utf-8") as file:
+                    task_rows = list(csv.DictReader(file))
+                for row in task_rows:
                     task = TaskModel(
                         task_id=str(row["task_id"]),
-                        task_type=str(row.get("task_type", "delivery")),
-                        pickup_lat=float(row.get("pickup_lat", 18.5204)),
-                        pickup_lon=float(row.get("pickup_lon", 73.8567)),
-                        destination_lat=float(row.get("destination_lat", 18.5204)),
-                        destination_lon=float(row.get("destination_lon", 73.8567)),
-                        priority=str(row.get("priority", "medium")),
-                        priority_num=int(row.get("priority_num", 1)),
-                        estimated_duration_min=float(row.get("estimated_duration_min", 45.0)),
-                        deadline_min=float(row.get("deadline_min", 120.0)),
-                        payment=float(row.get("payment", 250.0)),
-                        package_weight_kg=float(row.get("package_weight_kg", 5.0)),
-                        vehicle_required=str(row.get("vehicle_required", "bike")),
-                        required_skill=str(row.get("required_skill", "driving")),
+                        task_type=str(_csv_value(row, "task_type", "delivery")),
+                        pickup_lat=float(_csv_value(row, "pickup_lat", 18.5204)),
+                        pickup_lon=float(_csv_value(row, "pickup_lon", 73.8567)),
+                        destination_lat=float(_csv_value(row, "destination_lat", 18.5204)),
+                        destination_lon=float(_csv_value(row, "destination_lon", 73.8567)),
+                        priority=str(_csv_value(row, "priority", "medium")),
+                        priority_num=int(_csv_value(row, "priority_num", 1)),
+                        estimated_duration_min=float(_csv_value(row, "estimated_duration_min", 45.0)),
+                        deadline_min=float(_csv_value(row, "deadline_min", 120.0)),
+                        payment=float(_csv_value(row, "payment", 250.0)),
+                        package_weight_kg=float(_csv_value(row, "package_weight_kg", 5.0)),
+                        vehicle_required=str(_csv_value(row, "vehicle_required", "bike")),
+                        required_skill=str(_csv_value(row, "required_skill", "driving")),
                         status="unallocated",
                         allocated_worker_id=None,
                         allocation_id=None,
                         is_demo_seed=True
                     )
                     db.add(task)
-                print(f"Successfully loaded {len(df_tasks)} tasks.")
+                print(f"Successfully loaded {len(task_rows)} tasks.")
             else:
                 print(f"Tasks CSV not found at {tasks_csv}")
         else:

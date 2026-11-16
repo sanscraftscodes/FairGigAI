@@ -1,9 +1,9 @@
 import math
+from collections import Counter
 import numpy as np
-import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
 from app.services.eligibility import check_worker_eligibility, haversine_distance
-from app.services.feature_builder import extract_candidate_features, build_features_dataframe
+from app.services.feature_builder import extract_candidate_features, build_feature_rows
 from app.services.model_service import model_service
 from app.services.fairness_service import (
     compute_efficiency, compute_opportunity_credit, compute_workload_pressure,
@@ -78,8 +78,8 @@ def evaluate_candidates_for_task(
         }
 
     # Step 2: Run ML Inference on eligible workers
-    df_features = build_features_dataframe(eligible_feature_rows)
-    ens_probs, hgb_probs, cat_probs = model_service.predict_probabilities(df_features)
+    feature_rows = build_feature_rows(eligible_feature_rows)
+    ens_probs, hgb_probs, cat_probs = model_service.predict_probabilities(feature_rows)
 
     # Step 3: Compute Fairness & Efficiency signals
     distances = np.array([row["distance_km"] for row in eligible_feature_rows])
@@ -195,12 +195,12 @@ def simulate_policy_comparison(tasks: List[Any], workers: List[Any], lambda_val:
             continue
 
         worker_ids = [r["worker_id"] for r in chosen_records]
-        exposure_series = pd.Series(worker_ids).value_counts()
+        exposure_counts = Counter(worker_ids)
         total_unique_workers = len(workers)
-        active_workers_count = len(exposure_series)
+        active_workers_count = len(exposure_counts)
 
-        jain = calculate_jain_index(exposure_series)
-        gini = calculate_gini_index(exposure_series)
+        jain = calculate_jain_index(list(exposure_counts.values()))
+        gini = calculate_gini_index(list(exposure_counts.values()))
         coverage = active_workers_count / max(1, total_unique_workers)
         zero_exposure = 1.0 - coverage
 
@@ -246,11 +246,11 @@ def run_lambda_sweep(tasks: List[Any], workers: List[Any], lambdas: Optional[Lis
             continue
 
         worker_ids = [r["worker_id"] for r in chosen_records]
-        exposure_series = pd.Series(worker_ids).value_counts()
-        active_count = len(exposure_series)
+        exposure_counts = Counter(worker_ids)
+        active_count = len(exposure_counts)
 
-        jain = calculate_jain_index(exposure_series)
-        gini = calculate_gini_index(exposure_series)
+        jain = calculate_jain_index(list(exposure_counts.values()))
+        gini = calculate_gini_index(list(exposure_counts.values()))
         coverage = active_count / max(1, total_unique_workers)
         mean_pred = float(np.mean([r["predicted_success"] for r in chosen_records]))
         mean_dist = float(np.mean([r["distance_km"] for r in chosen_records]))
