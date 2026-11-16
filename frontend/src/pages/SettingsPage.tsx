@@ -1,33 +1,30 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Settings as SettingsIcon,
-  ShieldCheck,
   BrainCircuit,
   Database,
   Sliders,
   CheckCircle2,
-  AlertTriangle,
-  Key,
   Cpu
 } from 'lucide-react';
+import { getAIStatus, type AIStatus } from '../api/client';
 
 export const SettingsPage: React.FC = () => {
   const [lambdaDefault, setLambdaDefault] = useState<number>(0.08);
   const [appMode, setAppMode] = useState<string>('Research & Demonstration');
   const [defaultPolicy, setDefaultPolicy] = useState<string>('WAFR');
   const [savedNotice, setSavedNotice] = useState<boolean>(false);
+  const [aiStatus, setAiStatus] = useState<AIStatus | null>(null);
+  const [aiStatusError, setAiStatusError] = useState<boolean>(false);
 
-  // LLM and Explainable AI settings
-  const [ollamaUrl, setOllamaUrl] = useState<string>(() => {
-    const savedUrl = localStorage.getItem('fairgig_ollama_url') || '';
-    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(?:\/|$)/i.test(savedUrl) ? '' : savedUrl;
-  });
-  const [llmProvider, setLlmProvider] = useState<string>(() => localStorage.getItem('fairgig_llm_provider') || 'auto');
+  useEffect(() => {
+    getAIStatus()
+      .then(setAiStatus)
+      .catch(() => setAiStatusError(true));
+  }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('fairgig_ollama_url', ollamaUrl);
-    localStorage.setItem('fairgig_llm_provider', llmProvider);
     setSavedNotice(true);
     setTimeout(() => setSavedNotice(false), 3000);
   };
@@ -143,48 +140,29 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Explainable AI & LLM Provider Configuration */}
+        {/* Explainable AI Provider Status */}
         <div className="bg-white rounded-3xl border border-[#EAE7F2] p-6 shadow-xs space-y-4">
           <h3 className="font-bold text-sm text-[#29263D] flex items-center gap-2">
-            <Key className="w-4 h-4 text-[#8B7CF6]" /> Explainable AI (XAI) & Prompt Engineering Setup
+            <Cpu className="w-4 h-4 text-[#8B7CF6]" /> Explainable AI Provider Status
           </h3>
 
           <div className="text-xs space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-medium text-[#29263D] mb-1">Default Reasoning Provider</label>
-                <select
-                  value={llmProvider}
-                  onChange={(e) => setLlmProvider(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-[#EAE7F2] bg-[#FAF9FE] focus:outline-none focus:border-[#8B7CF6]"
-                >
-                  <option value="auto">Auto (Detects Best Gemini Model or Offline CoT)</option>
-                  <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recommended)</option>
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                  <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash Latest</option>
-                  <option value="gemini-pro">Gemini Pro</option>
-                  <option value="ollama">Ollama (Remote Endpoint)</option>
-                  <option value="heuristic">FairGig Prompt-Engineered CoT (Zero-Shot Rule Engine)</option>
-                </select>
-              </div>
-
-              <div>
-                <p className="rounded-xl border border-[#EAE7F2] bg-[#FAF9FE] p-3 text-[#77748C]">
-                  Gemini credentials are configured server-side with the <code>GEMINI_API_KEY</code> environment variable. They are never stored in this browser.
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-medium text-[#29263D] mb-1">Reachable Ollama API Endpoint</label>
-              <input
-                type="text"
-                placeholder="https://your-ollama-endpoint.example"
-                value={ollamaUrl}
-                onChange={(e) => setOllamaUrl(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-[#EAE7F2] bg-[#FAF9FE] focus:outline-none focus:border-[#8B7CF6]"
-              />
-            </div>
+            <p className="rounded-xl border border-[#EAE7F2] bg-[#FAF9FE] p-3 text-[#77748C]">
+              {aiStatusError
+                ? 'AI status is unavailable from the backend.'
+                : !aiStatus
+                  ? 'Checking backend AI configuration...'
+                  : aiStatus.configured && aiStatus.available
+                    ? 'Gemini Online - Connected'
+                    : aiStatus.configured && aiStatus.availability_checked
+                      ? 'Gemini Unavailable - Using Offline Fallback'
+                      : aiStatus.configured
+                        ? 'Gemini Configured - Availability is checked when an explanation is generated'
+                        : 'Offline Mode - Active'}
+            </p>
+            <p className="text-[#77748C]">
+              The backend automatically uses Gemini when available and otherwise generates deterministic explanations from the allocation data. Configure <code>GEMINI_API_KEY</code> only in the backend environment (or the root local <code>.env</code> file); it is never sent to or stored by this browser.
+            </p>
           </div>
         </div>
 

@@ -26,21 +26,20 @@ Whenever you see **`[WHAT TO SAY TO MA'AM]`**, you can read or say those exact w
 > *Our system, FairGig AI, solves this using 3 pillars:*
 > - *A **Machine Learning Ensemble** (HistGradientBoosting + CatBoost) with **0.9561 ROC-AUC** that predicts delivery success likelihood.*
 > - *A **Workload-Aware Fair Ranking (WAFR)** algorithm featuring a tunable fairness knob called **Lambda ($\lambda$)**.*
-> - *A **6-Agent Prompt Engineering Architecture** integrated with **Google Gemini API** that generates transparent, explainable AI justifications using Chain-of-Thought reasoning."*
+> - *A **6-Agent Architecture** with a backend-managed Gemini explanation service and a deterministic offline fallback that produces transparent, data-grounded explanations."*
 
 ---
 
 ## PART 2: KEY THEORETICAL CONCEPTS IN SIMPLE WORDS (Memorize These!)
 
-### 1. What is Chain-of-Thought (CoT) Prompting?
-**In simple words**: Chain-of-Thought is a prompt engineering technique where instead of asking an LLM to give an immediate answer, we force the model to break down its reasoning into sequential logical steps (`Step 1: Constraint Verification` $\to$ `Step 2: ML Probability Weighting` $\to$ `Step 3: Runner-Up Contrast` $\to$ `Step 4: Ethical UN SDG 8 Audit`).
-**Why we use it**: If you ask an LLM *"Who is better?"*, it might hallucinate. With Chain-of-Thought, the prompt compels the LLM to verify vehicle cargo limits, travel radius, and exact mathematical score deltas before reaching a decision.
+### 1. How are explanations generated?
+**In simple words**: The backend supplies the allocation's actual task, worker, model-score, and fairness values to Gemini and asks for a concise, structured explanation. The prompt forbids unsupported facts and private chain-of-thought.
 
 ### 2. What is Zero-Shot Prompting?
 **In simple words**: Zero-shot prompting means instructing the LLM with clear role conditioning and schemas without needing to fine-tune or re-train model weights on gig dataset samples. The prompt itself contains the system persona, ethical principles, and candidate attributes, allowing the model to immediately generalize to any delivery order zero-shot.
 
 ### 3. What is the Fallback Option and why do we have it?
-**In simple words**: External cloud APIs can fail (internet disconnection, API quota exhaustion, or Google retiring a model name). FairGig AI implements an automated **Zero-Downtime Fallback Engine**: if Google Gemini API is unavailable, the backend automatically executes our built-in **Prompt-Engineered Chain-of-Thought (CoT) engine**. It produces the identical structured 4-part explanation and mathematical score breakdown offline. **This guarantees 0 errors and 0 lag during your viva!**
+**In simple words**: External APIs can fail or be unreachable. If Gemini is not configured or a request fails, the backend automatically generates a deterministic explanation from the supplied allocation values. Allocation and ML predictions do not depend on Gemini.
 
 ### 4. What is the WAFR Module (Workload-Aware Fair Ranking)?
 **In simple words**: WAFR is our core mathematical contribution. The formula is:
@@ -157,7 +156,7 @@ Follow these exact steps during your demonstration:
   3. **Fairness Evaluation Agent (Stage 3)**: Computes opportunity & workload metrics.
   4. **Allocation Decision Agent (Stage 4)**: Evaluates WAFR composite ranking.
   5. **Audit & Safety Agent (Stage 5)**: Validates zero-violation safety checks.
-  6. **Explainability Agent (Stage 6)**: Generates transparent CoT reasoning.
+  6. **Explainability Agent (Stage 6)**: Generates a concise Gemini explanation or deterministic offline fallback.
 
 ---
 
@@ -204,14 +203,14 @@ Follow these exact steps during your demonstration:
 ---
 
 ### 🖥️ SCREEN 10: Settings & LLM Provider Setup (`/settings`)
-- Global configuration for default policy, default $\lambda$ (0.08), Gemini API Key input, and Ollama endpoint URL.
+- Global configuration for default policy, default $\lambda$ (0.08), and backend-reported AI provider status.
 
 ---
 
 ## PART 4: TOP 10 TRICKY QUESTIONS FROM MA'AM & BULLETPROOF ANSWERS
 
 ### Q1: Why did you use Prompt Engineering instead of just writing Python if-else statements?
-> *"Python if-else statements are rigid and cannot produce nuanced, human-understandable natural language explanations for gig workers. Furthermore, our 6-agent system uses Prompt Engineering for autonomous delegation: each agent has a specialized system prompt, input/output JSON contracts, and constrained schemas. In the Explainability stage, Prompt Engineering (Chain-of-Thought with temperature 0.2) allows the LLM to synthesize data from ML probabilities, distance deltas, and UN SDG 8 principles into legally defensible audit reports."*
+> *"The six-agent workflow has specialized input and output contracts. In the Explainability stage, a zero-shot structured prompt helps Gemini summarize the actual ML probabilities, distance deltas, and fairness terms. If Gemini is unavailable, a deterministic backend explanation is used instead; private chain-of-thought is not requested or shown."*
 
 ### Q2: Why is the predicted success probability 58% on some tasks and 90% on others?
 > *"Because tasks have different difficulty levels! An express grocery delivery with a 15-minute deadline and heavy cargo in bad weather has a much lower baseline probability of successful completion (e.g., 58%) than a standard document dispatch with a 2-hour deadline (e.g., 91%). The ML ensemble accurately captures this real-world variance across its 27 features."*
@@ -235,7 +234,7 @@ Follow these exact steps during your demonstration:
 > *"Tabular gig data has both continuous numeric features (distance, speed, ratings) and categorical features (vehicle type, required skill). HistGradientBoosting bins numeric features with extreme efficiency, while CatBoost natively processes categorical features without one-hot encoding explosion. Weighted 50-50, they provide lower variance and higher calibration (Brier score 0.0187)."*
 
 ### Q9: What happens if your Gemini API key fails or you lose internet?
-> *"We engineered an automatic fallback mechanism! If Gemini returns a 404, rate limit, or network error, our system seamlessly falls back to our internal Prompt-Engineered Chain-of-Thought (CoT) engine. It produces the exact same structured 4-part explanation offline with zero downtime."*
+> *"When Gemini is not configured or a request fails, the backend automatically switches to its deterministic explanation logic. The offline result is clearly marked and uses the same supplied task, worker, allocation, and fairness data."*
 
 ### Q10: Why did you set LLM temperature to 0.2?
 > *"In creative writing, high temperature (0.8) is good. But in regulatory auditing and algorithmic fairness, we need deterministic, reproducible, and fact-grounded outputs. A low temperature of 0.2 ensures the LLM sticks strictly to the mathematical data without hallucinating."*

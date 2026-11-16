@@ -1,8 +1,9 @@
+import asyncio
 import time
+from app.services.ai_service import generate_agent_explanation
 from typing import Dict, Any, List, Optional
 from app.services.llm_explainability_service import (
     build_prompt_payload,
-    generate_deterministic_explanation,
     SYSTEM_PROMPT,
     PROMPT_ENGINEERING_TECHNIQUE
 )
@@ -56,7 +57,7 @@ class ExplainabilityAgent:
         }
 
         prompt_data = build_prompt_payload(task_dict, selected_worker, runner_up, policy, lambda_val)
-        det_res = generate_deterministic_explanation(prompt_data)
+        explanation = asyncio.run(generate_agent_explanation(prompt_data))
 
         duration_ms = (time.time() - start_time) * 1000
 
@@ -74,12 +75,15 @@ class ExplainabilityAgent:
                 "lambda_val": lambda_val
             },
             "output_summary": {
-                "explanation_text": det_res["executive_summary"],
-                "explanation_markdown": det_res["explanation_markdown"],
+                "explanation_text": explanation["executive_summary"],
+                "explanation_markdown": explanation["explanation_markdown"],
                 "score_decomposition": prompt_data["selected_worker"]["score_decomposition"],
-                "runner_up_comparison": det_res["runner_up_comparison"],
-                "sdg8_audit": det_res["sdg8_audit"],
-                "provider_used": det_res["provider_used"],
+                "runner_up_comparison": explanation["runner_up_comparison"],
+                "sdg8_audit": explanation["sdg8_audit"],
+                "provider_used": explanation["provider_used"],
+                "provider": explanation["provider"],
+                "mode": explanation["mode"],
+                "fallback_used": explanation["fallback_used"],
                 "prompt_inspector": {
                     "system_prompt": SYSTEM_PROMPT.strip(),
                     "prompt_engineering_technique": PROMPT_ENGINEERING_TECHNIQUE,

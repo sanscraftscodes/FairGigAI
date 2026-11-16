@@ -105,8 +105,9 @@ available to scan for previously committed secrets.
    wheels.
 6. Under **Settings → Environment Variables**, add:
    - `DATABASE_URL`: the Supabase **Session pooler** URI, server-side only.
-   - `GEMINI_API_KEY` (optional): only if Gemini-based explanations are wanted.
-     Without it, the deterministic explainability engine still works.
+   - `GEMINI_API_KEY` (optional): the backend uses Gemini `gemini-3.6-flash`
+     when configured. If it is missing or a request fails, deterministic
+     explanations remain available without blocking allocation.
    Set variables for **Production** (and Preview only if you intend preview
    deployments to share the same database).
 7. Deploy. Name the project `fairgig-ai` if that Vercel project/domain name is
@@ -124,6 +125,9 @@ After deployment, replace `<DEPLOYMENT>` with the assigned Vercel URL:
 - Open `https://<DEPLOYMENT>/dashboard`, then refresh the page directly.
 - Open `https://<DEPLOYMENT>/api/health`; it should return HTTP 200, report the
   database connected, and report both trained model artifacts operational.
+- Open `/api/ai/status` for safe backend provider state. It does not make an
+  external request; Gemini availability updates when an explanation request
+  succeeds or falls back.
 - Open `/api/tasks?page=1&limit=1` and `/api/workers?page=1&limit=1`; each should
   return a page of demo records.
 - In the app, preview an allocation and run the multi-agent workflow. Confirm
@@ -151,6 +155,11 @@ For local development, set `FAIRGIG_DB_PATH` if you want to use a disposable
 SQLite database, seed it from the `backend` directory, then run FastAPI and
 Vite using the existing Windows startup scripts. The Vite proxy is only for
 local development; production requests remain same-origin.
+
+Copy `.env.example` to a root `.env` for local server-side configuration, then
+replace its placeholders. The backend loads that file with `python-dotenv`;
+`.env` is ignored by Git. Never put `GEMINI_API_KEY` in a `VITE_*` variable or
+send it from the browser.
 
 ## References
 

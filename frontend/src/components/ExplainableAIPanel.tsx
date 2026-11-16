@@ -9,11 +9,7 @@ import {
   RefreshCw,
   Scale,
   Users,
-  CheckCircle2,
-  FileCode,
-  Terminal,
-  Sliders,
-  ExternalLink
+  Terminal
 } from 'lucide-react';
 import { explainAllocation } from '../api/client';
 
@@ -32,12 +28,6 @@ export const ExplainableAIPanel: React.FC<ExplainableAIPanelProps> = ({
   policy,
   lambdaVal,
 }) => {
-  const [provider, setProvider] = useState<string>('auto');
-  const [ollamaUrl, setOllamaUrl] = useState<string>(() => {
-    const savedUrl = localStorage.getItem('fairgig_ollama_url') || '';
-    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(?:\/|$)/i.test(savedUrl) ? '' : savedUrl;
-  });
-  const [showConfig, setShowConfig] = useState<boolean>(false);
   const [showInspector, setShowInspector] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'explanation' | 'math' | 'runner_up' | 'sdg8'>('explanation');
 
@@ -45,7 +35,7 @@ export const ExplainableAIPanel: React.FC<ExplainableAIPanelProps> = ({
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleFetchExplanation = async (forceProvider?: string) => {
+  const handleFetchExplanation = async () => {
     if (!selectedWorker) return;
     setLoading(true);
     setError(null);
@@ -56,8 +46,6 @@ export const ExplainableAIPanel: React.FC<ExplainableAIPanelProps> = ({
         runner_up_id: runnerUp?.worker_id,
         policy,
         lambda_val: lambdaVal,
-        provider: forceProvider || provider,
-        ollama_url: ollamaUrl || undefined,
       });
       setResult(res);
     } catch (err: any) {
@@ -101,15 +89,6 @@ export const ExplainableAIPanel: React.FC<ExplainableAIPanelProps> = ({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setShowConfig(!showConfig)}
-            className="px-3 py-1.5 rounded-xl border border-[#EAE7F2] text-xs font-semibold text-[#77748C] hover:bg-[#FAF9FE] flex items-center gap-1.5 transition-colors"
-          >
-            <span>LLM Setup</span>
-            {showConfig ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-
-          <button
-            type="button"
             onClick={() => handleFetchExplanation()}
             disabled={loading}
             className="px-4 py-1.5 rounded-xl bg-[#8B7CF6] hover:bg-[#7A6AE6] text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all disabled:opacity-50"
@@ -119,60 +98,6 @@ export const ExplainableAIPanel: React.FC<ExplainableAIPanelProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Collapsible API & Model Configuration */}
-      {showConfig && (
-        <div className="p-4 rounded-2xl bg-[#FAF9FE] border border-[#EAE7F2] space-y-4 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-[#29263D] flex items-center gap-1.5">
-              <Sliders className="w-3.5 h-3.5 text-[#8B7CF6]" />
-              LLM Inference Provider Settings
-            </span>
-            <span className="text-[11px] text-[#77748C]">
-              Server-configured Gemini, reachable Ollama, or deterministic Chain-of-Thought (CoT)
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-[11px] font-semibold text-[#77748C] mb-1">
-                Active Provider
-              </label>
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value)}
-                className="w-full text-xs bg-white border border-[#EAE7F2] rounded-xl px-3 py-2 text-[#29263D] focus:outline-none focus:border-[#8B7CF6]"
-              >
-                <option value="auto">Auto (Detects Best Gemini Model or Offline CoT)</option>
-                <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recommended)</option>
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash Latest</option>
-                <option value="gemini-pro">Gemini Pro</option>
-                <option value="ollama">Ollama (Remote Endpoint)</option>
-                <option value="heuristic">FairGig Prompt-Engineered CoT (Offline)</option>
-              </select>
-            </div>
-          </div>
-
-          {provider === 'ollama' && (
-            <div>
-              <label className="block text-[11px] font-semibold text-[#77748C] mb-1">
-                Reachable Ollama Endpoint URL
-              </label>
-              <input
-                type="text"
-                placeholder="https://your-ollama-endpoint.example"
-                value={ollamaUrl}
-                onChange={(e) => {
-                  setOllamaUrl(e.target.value);
-                  localStorage.setItem('fairgig_ollama_url', e.target.value);
-                }}
-                className="w-full text-xs bg-white border border-[#EAE7F2] rounded-xl px-3 py-2 text-[#29263D] focus:outline-none focus:border-[#8B7CF6]"
-              />
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Provider Pill & Status */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -360,7 +285,7 @@ export const ExplainableAIPanel: React.FC<ExplainableAIPanelProps> = ({
             >
               <span className="flex items-center gap-2">
                 <Terminal className="w-4 h-4" />
-                Prompt Engineering Trace & Hyperparameters
+                Prompt Details & Hyperparameters
               </span>
               {showInspector ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>

@@ -59,7 +59,7 @@ def create_demo_presentation_doc():
     r_box_b = p_box.add_run(
         "This guide is arranged in the exact order you should click and speak on screen. "
         "Whenever you see [WHAT TO SAY TO MA'AM], you can speak those exact words. "
-        "All difficult concepts (Chain-of-Thought, Zero-Shot, Fallback, Lambda, Jain's Fairness, Gini, Threshold 0.155) "
+        "All difficult concepts (Zero-Shot Prompting, Offline Fallback, Lambda, Jain's Fairness, Gini, Threshold 0.155) "
         "are broken down in simple, conversational English so you never get stuck."
     )
     r_box_b.font.size = Pt(10.5)
@@ -85,8 +85,7 @@ def create_demo_presentation_doc():
         "Our system, FairGig AI, solves this using 3 pillars:\n"
         "• A Machine Learning Ensemble (HistGradientBoosting + CatBoost) with 0.9561 ROC-AUC that predicts delivery success.\n"
         "• A Workload-Aware Fair Ranking (WAFR) formula with a tunable fairness knob called Lambda (λ).\n"
-        "• A 6-Agent Prompt Engineering Architecture integrated with Google Gemini API that generates transparent, "
-        "explainable AI justifications using Chain-of-Thought reasoning.\""
+        "• A 6-Agent Architecture with backend-managed Gemini explanations and a deterministic offline fallback.\""
     )
 
     # =========================================================================
@@ -96,16 +95,9 @@ def create_demo_presentation_doc():
     h2.style.font.color.rgb = RGBColor(0x6D, 0x28, 0xD9)
 
     concepts = [
-        ("1. What is Chain-of-Thought (CoT) Prompting?",
-         "Chain-of-Thought is a prompt engineering technique where instead of asking an LLM to give an immediate answer, "
-         "we force the model to break down its thinking into sequential logical steps (Reasoning Step 1 -> Step 2 -> Step 3 -> Final Decision).\n"
-         "Why we use it: In gig allocation, if you ask an LLM 'Who is better?', it might hallucinate. With Chain-of-Thought, "
-         "our prompt forces the model to evaluate:\n"
-         "  1. Hard eligibility constraints (vehicle, distance)\n"
-         "  2. ML probability contributions\n"
-         "  3. Runner-up counterfactual contrast (Worker A vs Worker B)\n"
-         "  4. UN SDG 8 Decent Work compliance.\n"
-         "This guarantees mathematically grounded, 100% truthful explanations."),
+        ("1. How are explanations generated?",
+         "The backend sends the allocation's actual task, worker, model-score, and fairness values to Gemini and asks for a concise, structured explanation. "
+         "Prompts prohibit unsupported facts and private chain-of-thought. A deterministic backend fallback is used if Gemini is unavailable."),
 
         ("2. What is Zero-Shot Prompting / Learning?",
          "Zero-shot prompting means giving the model a task with clear role conditioning and instructions without needing to "
@@ -115,10 +107,9 @@ def create_demo_presentation_doc():
         ("3. What is the Fallback Option and why do we have it?",
          "In real-world SaaS and during university vivas, external cloud APIs can fail: internet drops, API quota runs out, "
          "or Google deprecates a model name (like gemini-1.5-flash). "
-         "FairGig AI implements an automated Fallback Engine: if Google Gemini API fails or is unreachable, the system automatically "
-         "switches to our internal Prompt-Engineered Chain-of-Thought (CoT) rule engine. "
-         "It generates the exact same structured 4-part explanation and mathematical score breakdown offline. "
-         "This guarantees ZERO downtime and ZERO errors during presentation!"),
+         "FairGig AI implements an automatic fallback: if Gemini is not configured or a request fails, "
+         "the backend generates a deterministic explanation from the supplied allocation values. "
+         "Allocation, fairness evaluation, and ML inference do not depend on Gemini."),
 
         ("4. What is the WAFR Module (Workload-Aware Fair Ranking)?",
          "WAFR is our core mathematical contribution. The formula is:\n"
@@ -245,7 +236,7 @@ def create_demo_presentation_doc():
          "   3. Fairness Evaluation Agent (Stage 3): Computes opportunity & workload metrics.\n"
          "   4. Allocation Decision Agent (Stage 4): Evaluates WAFR composite ranking.\n"
          "   5. Audit & Safety Agent (Stage 5): Validates zero-violation safety checks.\n"
-         "   6. Explainability Agent (Stage 6): Generates transparent CoT reasoning."),
+         "   6. Explainability Agent (Stage 6): Generates a Gemini explanation or deterministic offline fallback."),
 
         ("SCREEN 4: Fairness Analytics (/fairness)",
          "What to show Ma'am:\n"
@@ -286,8 +277,7 @@ def create_demo_presentation_doc():
         ("SCREEN 10: Settings & LLM Provider Setup (/settings)",
          "What to show Ma'am:\n"
          "• Default policy selector (WAFR vs ML-Only vs Nearest Eligible).\n"
-         "• Google Gemini API Key input field (saved securely to localStorage).\n"
-         "• Model Selector: Auto / Gemini 2.0 Flash / Gemini 2.5 Flash / Gemini Pro / Ollama / Offline CoT.")
+         "• AI provider status reported by the backend; Gemini credentials are configured only in the backend environment.")
     ]
 
     for title, desc in screens:
@@ -313,8 +303,8 @@ def create_demo_presentation_doc():
         ("Q1: Why did you use Prompt Engineering instead of just writing Python if-else statements?",
          "Answer: Python if-else statements are rigid and cannot produce nuanced, human-understandable natural language explanations for gig workers. "
          "Furthermore, our 6-agent system uses Prompt Engineering for autonomous delegation: each agent has a specialized system prompt, "
-         "input/output JSON contracts, and constrained schemas. In the Explainability stage, Prompt Engineering (Chain-of-Thought with temperature 0.2) "
-         "allows the LLM to synthesize data from ML probabilities, distance deltas, and UN SDG 8 principles into legally defensible audit reports."),
+         "input/output JSON contracts, and constrained schemas. In the Explainability stage, a zero-shot structured prompt "
+         "summarizes supplied ML probabilities, distance deltas, and UN SDG 8 factors without requesting private reasoning."),
 
         ("Q2: Why is the predicted success probability 58% on some tasks and 90% on others?",
          "Answer: Because tasks have different difficulty levels! An express grocery delivery with a 15-minute deadline and heavy cargo in bad weather "
@@ -351,7 +341,7 @@ def create_demo_presentation_doc():
 
         ("Q9: What happens if your Gemini API key fails or you lose internet?",
          "Answer: We engineered an automatic fallback mechanism! If Gemini returns a 404, rate limit, or network error, our system seamlessly falls back "
-         "to our internal Prompt-Engineered Chain-of-Thought (CoT) engine. It produces the exact same structured 4-part explanation offline with zero downtime."),
+         "to deterministic backend explanation logic. The offline result is clearly marked and uses the same supplied task, worker, allocation, and fairness data."),
 
         ("Q10: Why did you set LLM temperature to 0.2?",
          "Answer: In creative writing, high temperature (0.8) is good. But in regulatory auditing and algorithmic fairness, we need deterministic, "

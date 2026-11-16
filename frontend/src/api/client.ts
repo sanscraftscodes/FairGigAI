@@ -75,9 +75,19 @@ export const explainAllocation = (data: {
   runner_up_id?: string;
   policy?: string;
   lambda_val?: number;
-  provider?: string;
-  ollama_url?: string;
 }) => apiRequest<any>('/allocation/explain', { method: 'POST', body: JSON.stringify(data) });
+
+export interface AIStatus {
+  provider: 'gemini' | 'offline';
+  mode: 'online' | 'offline' | 'fallback' | 'configured';
+  available: boolean;
+  configured: boolean;
+  availability_checked: boolean;
+  fallback_enabled: boolean;
+  reason: string | null;
+}
+
+export const getAIStatus = () => apiRequest<AIStatus>('/ai/status');
 
 export const getAllocationDetail = (allocId: string) => apiRequest<any>(`/allocation/${allocId}`);
 

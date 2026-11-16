@@ -74,5 +74,3 @@ class AllocationExplainRequest(BaseModel):
     runner_up_id: Optional[str] = None
     policy: str = Field(default="WAFR")
     lambda_val: float = Field(default=0.08, ge=0.0, le=1.0)
-    provider: str = Field(default="auto", description="auto, gemini, ollama, heuristic")
-    ollama_url: Optional[str] = None

@@ -11,7 +11,7 @@ from app.schemas.allocation import (
     AllocationPreviewRequest, AllocationRunRequest, AllocationResponse, AllocationRecordResponse, AllocationExplainRequest
 )
 from app.services.allocation_service import evaluate_candidates_for_task
-from app.services.llm_explainability_service import explain_allocation
+from app.services.ai_service import explain_allocation
 
 router = APIRouter(prefix="/allocation", tags=["Allocation"])
 
@@ -96,12 +96,6 @@ def run_allocation(payload: AllocationRunRequest, db: Session = Depends(get_db))
 
 @router.post("/explain", response_model=dict)
 async def explain_allocation_endpoint(payload: AllocationExplainRequest, db: Session = Depends(get_db)):
-    if payload.provider == "ollama" and not (payload.ollama_url or "").strip():
-        raise HTTPException(
-            status_code=422,
-            detail="Set a reachable Ollama endpoint URL before selecting the Ollama provider.",
-        )
-
     task = db.query(TaskModel).filter(TaskModel.task_id == payload.task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail=f"Task {payload.task_id} not found")
@@ -157,9 +151,7 @@ async def explain_allocation_endpoint(payload: AllocationExplainRequest, db: Ses
         selected_worker=selected_worker,
         runner_up=runner_up,
         policy=payload.policy,
-        lambda_val=payload.lambda_val,
-        provider=payload.provider,
-        ollama_url=payload.ollama_url or ""
+        lambda_val=payload.lambda_val
     )
 
     return explanation_res

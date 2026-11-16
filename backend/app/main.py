@@ -14,6 +14,7 @@ from app.api.fairness import router as fairness_router
 from app.api.model import router as model_router
 from app.api.history import router as history_router
 from app.api.reports import router as reports_router
+from app.api.ai import router as ai_router
 from app.services.model_service import model_service
 from app.config import PROJECT_ROOT
 
@@ -61,6 +62,7 @@ app.include_router(fairness_router, prefix="/api")
 app.include_router(model_router, prefix="/api")
 app.include_router(history_router, prefix="/api")
 app.include_router(reports_router, prefix="/api")
+app.include_router(ai_router, prefix="/api")
 
 FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
 
