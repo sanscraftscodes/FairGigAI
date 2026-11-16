@@ -8,7 +8,7 @@
       "functions": {
         "backend/vercel_app.py": {
           "includeFiles": "{backend/app/**,backend/vercel_app.py,data/tasks.csv,data/workers.csv,models/cat_model_python.py,models/ensemble_configuration.json,models/hist_gradient_boosting.json,predictions/ensemble_test.csv,predictions/y_test.csv}",
-          "excludeFiles": "{backend/tests/**,backend/scripts/**,backend/generate_*.py,backend/app/fairgig.db,models/all_trained_models.joblib,models/cat_model.joblib,models/cat_model.cbm,models/cat_model_debug.json,frontend/**,documentation/**,**/__pycache__/**,**/*.pyc,**/*.md,**/*.docx,**/*.zip,**/*.bat}"
+          "excludeFiles": "{frontend/**,documentation/**,backend/tests/**,backend/scripts/**,models/*.joblib,models/*.cbm,models/*debug*,backend/app/*.db,**/*.pyc,**/*.docx,**/*.zip}"
         }
       }
     },

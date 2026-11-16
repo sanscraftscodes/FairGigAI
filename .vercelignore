@@ -1,0 +1,20 @@
+# Documentation and presentation assets
+documentation/
+*.docx
+*.zip
+*.bat
+
+# Legacy and non-runtime ML model binaries
+models/*.joblib
+models/*.cbm
+models/*debug*
+
+# Python caches and local SQLite database
+__pycache__/
+*.pyc
+backend/app/*.db
+
+# Tests and utility scripts not used in production runtime
+backend/tests/
+backend/scripts/
+backend/generate_*.py
