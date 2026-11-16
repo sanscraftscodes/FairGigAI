@@ -2,6 +2,22 @@
 name = "fairgig-ai"
 version = "1.0.0"
 requires-python = "==3.12.*"
+dependencies = [
+    "fastapi==0.142.2",
+    "uvicorn==0.54.0",
+    "pydantic==2.12.4",
+    "numpy==2.3.3",
+    "pandas==2.3.3",
+    "scipy==1.17.1",
+    "scikit-learn==1.6.1",
+    "joblib==1.5.3",
+    "catboost==1.2.10",
+    "sqlalchemy==2.1.4",
+    "psycopg[binary]==3.2.13",
+    "httpx==0.28.1",
+    "google-generativeai==0.8.5",
+    "python-dotenv==1.1.1",
+]
 
 [tool.vercel]
 entrypoint = "backend.vercel_app:app"

@@ -102,7 +102,9 @@ available to scan for previously committed secrets.
    backend origin.
 5. `pyproject.toml` selects Python 3.12 and the FastAPI entrypoint; this matches
    the tested scikit-learn 1.6.1 model serialization and has compatible Linux
-   wheels.
+   wheels. Its pinned `project.dependencies` matches the root `requirements.txt`
+   so Vercel can install the complete backend dependency set during service
+   builds; local development can continue using `pip install -r requirements.txt`.
 6. Under **Settings → Environment Variables**, add:
    - `DATABASE_URL`: the Supabase **Session pooler** URI, server-side only.
    - `GEMINI_API_KEY` (optional): the backend uses Gemini `gemini-3.6-flash`
