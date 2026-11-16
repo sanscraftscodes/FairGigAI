@@ -1,10 +1,39 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm --prefix frontend ci && npm --prefix frontend run build",
-  "functions": {
-    "backend/vercel_app.py": {
-      "includeFiles": "{backend/app/**,data/**,models/**,predictions/**,frontend/dist/**}",
-      "excludeFiles": "{backend/app/fairgig.db,**/__pycache__/**,**/*.pyc}"
+  "services": {
+    "app": {
+      "root": ".",
+      "framework": "fastapi",
+      "functions": {
+        "backend/vercel_app.py": {
+          "includeFiles": "{backend/app/**,data/**,models/**,predictions/**}",
+          "excludeFiles": "{backend/app/fairgig.db,**/__pycache__/**,**/*.pyc}"
+        }
+      }
+    },
+    "frontend": {
+      "root": "frontend",
+      "framework": "vite"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api",
+      "destination": {
+        "service": "app"
+      }
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "app"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "frontend"
+      }
+    }
+  ]
 }

@@ -1,20 +1,22 @@
-# FairGig AI: one-project Vercel deployment
+# FairGig AI: multi-service Vercel deployment
 
-This repository is configured to run its React SPA and FastAPI API in one Vercel
-project. The React client uses only relative `/api/...` URLs. Vercel's Python
-runtime loads the FastAPI app from `backend/vercel_app.py`; its SPA fallback
-serves `frontend/dist` for browser routes such as `/dashboard`.
+This repository is configured as one Vercel project with two services. The
+React SPA is built from `frontend`; the FastAPI app is built from the repository
+root. Vercel routes `/api` and `/api/*` to FastAPI and all other paths to the
+frontend. The React client uses relative `/api/...` URLs.
 
 ## What is hosted where
 
 - **GitHub:** source, CSV seed data, and existing trained model artifacts.
-- **Vercel Hobby:** one Python/FastAPI function serving the API and built React
-  app from one project URL.
+- **Vercel Hobby:** the public `frontend` Vite service and public `app`
+  FastAPI service share one project URL.
 - **Supabase Free:** Postgres persistence. SQLite is retained only for local
   development because Vercel function filesystems are not persistent.
 
-No separate frontend or backend project/service is used. Do not configure a
-`VITE_API_URL`; it would expose a different backend origin in the browser.
+The frontend service calls the API through the public same-origin `/api` route.
+There is no service binding: browser-side requests cannot use Vercel's
+server-function-only bindings, and the FastAPI service does not call the
+frontend service. Do not configure a `VITE_API_URL`.
 
 ## Vercel Hobby fit (checked 16 November 2026)
 
@@ -31,10 +33,12 @@ document the following Fluid Compute limits for Hobby:
 
 The included model files total about 6.2 MB, and the CSV and held-out prediction
 data total about 2.5 MB. Dependencies are pinned in the root
-[requirements.txt](./requirements.txt); verify the final Linux function bundle
-in the Vercel build log because native wheel sizes and build output are
-platform-specific. The current artifacts do not justify depending on the
-5-GB beta. Function request/response payload limits still apply; the app's
+[requirements.txt](./requirements.txt). A Python 3.12 Linux wheel audit resolved
+831.6 MiB of uncompressed dependency contents, before the application and model
+files; this exceeds the standard 500 MB limit. An authenticated Vercel build is
+still required to determine the actual function bundle size. Do not treat
+deployment as viable on Hobby unless the bundle fits the limit; the 5-GB option
+is Beta and is not assumed here. Function request/response payload limits still apply; the app's
 current dashboard, paginated APIs, and CSV exports are intended for small
 interactive requests, not uploading large datasets. Vercel documents a 4.5 MB
 maximum for request and response bodies (except streamed responses).
@@ -92,12 +96,13 @@ available to scan for previously committed secrets.
 1. Sign in to Vercel and choose **Add New → Project**.
 2. Import the GitHub repository.
 3. Set **Root Directory** to the repository root (not `frontend` or `backend`).
-4. Leave the detected Python framework/runtime enabled. `pyproject.toml`
-   selects Python 3.12 and the FastAPI entrypoint; this matches the tested
-   scikit-learn 1.6.1 model serialization and has compatible Linux wheels.
-5. The repository's `vercel.json` builds the frontend and includes the runtime
-   model/data files. Do not add a rewrite that sends `/api/*` to an external
-   origin.
+4. The root `vercel.json` defines two services: `app` (FastAPI, root `.`) and
+   `frontend` (Vite, root `frontend`). It routes `/api` and `/api/*` to `app`
+   and all other paths to `frontend`. Do not add a rewrite to an external
+   backend origin.
+5. `pyproject.toml` selects Python 3.12 and the FastAPI entrypoint; this matches
+   the tested scikit-learn 1.6.1 model serialization and has compatible Linux
+   wheels.
 6. Under **Settings → Environment Variables**, add:
    - `DATABASE_URL`: the Supabase **Session pooler** URI, server-side only.
    - `GEMINI_API_KEY` (optional): only if Gemini-based explanations are wanted.
